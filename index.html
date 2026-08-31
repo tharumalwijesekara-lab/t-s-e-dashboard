@@ -12,7 +12,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    /* 1 inch x 1.5 inch photo thumbnail */
+    /* Fixed 1.5 inch x 1.5 inch logo container */
+    .brand-logo-box {
+      width: 1.5in;
+      height: 1.5in;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+    /* 1 inch x 1.5 inch saree photo thumbnail */
     .saree-img-box {
       width: 1in;
       height: 1.5in;
@@ -56,7 +63,7 @@
               </div>
               <textarea id="custAddress" placeholder="Delivery Address" class="w-full border p-3 rounded text-base h-20" required></textarea>
 
-              <div class="border-t pt-4">
+              <div class="border-t pt-4 space-y-3">
                 <div class="flex justify-between items-center mb-2">
                   <h3 class="font-semibold text-base text-amber-900">Saree Items & Photos</h3>
                   <button type="button" onclick="addItemRow()" class="text-xs bg-amber-100 text-amber-900 font-bold px-2 py-1 rounded hover:bg-amber-200">+ Add Item</button>
@@ -79,6 +86,11 @@
                     </div>
                   </div>
                 </div>
+
+                <div class="pt-2">
+                  <label class="text-xs font-semibold text-amber-900">Delivery Cost (LKR):</label>
+                  <input type="number" id="deliveryCostInput" value="0" min="0" placeholder="Delivery Cost" class="w-full border p-3 rounded text-base mt-1" required>
+                </div>
               </div>
 
               <button type="submit" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900 active:scale-95 transition">Generate Invoice</button>
@@ -91,28 +103,39 @@
               <h3 class="font-semibold text-lg text-amber-900">Invoice Preview</h3>
               <div class="flex space-x-2 w-full sm:w-auto">
                 <button onclick="downloadPDF()" class="flex-1 sm:flex-none bg-amber-700 text-white px-4 py-2 rounded text-sm hover:bg-amber-800">Download PDF</button>
-                <button onclick="shareWhatsApp()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 flex items-center justify-center gap-1">
+                <button onclick="shareWhatsAppPDF()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 flex items-center justify-center gap-1">
                   <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
-                  WhatsApp
+                  Share PDF via WhatsApp
                 </button>
               </div>
             </div>
             
             <div id="invoiceCard" class="border p-6 rounded bg-white text-gray-800 space-y-4">
-              <!-- Invoice Header with Brand Title & Logo File Upload -->
-              <div class="flex justify-between items-center border-b pb-4">
-                <div class="flex items-center space-x-3">
-                  <div>
-                    <h4 class="text-xl font-bold font-serif text-amber-900 tracking-wide">THE SAREE EMBASSY</h4>
-                    <p class="text-xs text-gray-500">Luxury Sarees</p>
-                  </div>
-                  <!-- Inline display of logo -->
-                  <label for="logoUpload" class="cursor-pointer">
-                    <img id="brandLogo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>" title="Click to set/change invoice logo" alt="Logo" class="h-14 w-auto object-contain border border-amber-200 rounded p-1 hover:opacity-80">
+              <!-- Invoice Header with Left-Aligned 1.5in x 1.5in Logo -->
+              <div class="flex justify-between items-start border-b pb-4">
+                <div class="flex items-center space-x-4">
+                  <!-- Logo Upload / Display on Left Side -->
+                  <label for="logoUpload" class="cursor-pointer shrink-0">
+                    <img id="brandLogo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>" title="Click to upload logo" alt="Logo" class="brand-logo-box border border-amber-200 rounded p-1 hover:opacity-80 bg-amber-50/50">
                   </label>
                   <input type="file" id="logoUpload" accept="image/*" class="hidden" onchange="loadLogo(this)">
+                  
+                  <div>
+                    <h4 class="text-xl font-bold font-serif text-amber-900 tracking-wide">THE SAREE EMBASSY</h4>
+                    <p class="text-xs font-semibold text-amber-800">Luxury Sarees</p>
+                    <p class="text-xs text-gray-500 mt-1">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
+                    <p class="text-xs text-gray-600">WhatsApp: <strong>0702394119</strong></p>
+                    
+                    <!-- Social Badges -->
+                    <div class="flex items-center space-x-2 mt-2 text-xs text-amber-900 font-medium">
+                      <span class="bg-amber-100 px-2 py-0.5 rounded border border-amber-200">TikTok</span>
+                      <span class="bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Facebook</span>
+                      <span class="bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Instagram</span>
+                    </div>
+                  </div>
                 </div>
-                <div class="text-right text-xs">
+
+                <div class="text-right text-xs shrink-0">
                   <p>Invoice #: <span id="invNo" class="font-bold">INV-001</span></p>
                   <p>Date: <span id="invDate">---</span></p>
                 </div>
@@ -151,6 +174,7 @@
               <div class="text-right text-xs space-y-1 border-t pt-3">
                 <p><strong>Subtotal (Original):</strong> LKR <span id="invSubtotal">0.00</span></p>
                 <p class="text-emerald-700"><strong>Total Discount Saved:</strong> LKR <span id="invDiscount">0.00</span></p>
+                <p><strong>Delivery Cost:</strong> LKR <span id="invDelivery">0.00</span></p>
                 <p class="text-base font-bold text-amber-950 pt-1">Grand Total: LKR <span id="invGrandTotal">0.00</span></p>
               </div>
 
@@ -283,6 +307,7 @@
       const phone1 = document.getElementById('custPhone1').value;
       const phone2 = document.getElementById('custPhone2').value || 'N/A';
       const address = document.getElementById('custAddress').value;
+      const deliveryCost = parseFloat(document.getElementById('deliveryCostInput').value) || 0;
 
       document.getElementById('invCustomer').innerText = name;
       document.getElementById('invPhone1').innerText = phone1;
@@ -326,9 +351,12 @@
       });
 
       const totalDiscount = grandSubtotal - grandTotal;
+      const finalGrandTotal = grandTotal + deliveryCost;
+
       document.getElementById('invSubtotal').innerText = grandSubtotal.toLocaleString();
       document.getElementById('invDiscount').innerText = totalDiscount.toLocaleString();
-      document.getElementById('invGrandTotal').innerText = grandTotal.toLocaleString();
+      document.getElementById('invDelivery').innerText = deliveryCost.toLocaleString();
+      document.getElementById('invGrandTotal').innerText = finalGrandTotal.toLocaleString();
 
       const custTbody = document.getElementById('customerTableBody');
       custTbody.innerHTML += `
@@ -347,7 +375,19 @@
       `;
     }
 
-    function shareWhatsApp() {
+    async function generatePdfBlob() {
+      const { jsPDF } = window.jspdf;
+      const element = document.getElementById('invoiceCard');
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+      return { pdf, blob: pdf.output('blob') };
+    }
+
+    async function shareWhatsAppPDF() {
       const name = document.getElementById('invCustomer') ? document.getElementById('invCustomer').innerText : '';
       let phone = document.getElementById('custPhone1').value.replace(/[^0-9]/g, '');
       const invNo = document.getElementById('invNo').innerText;
@@ -358,34 +398,40 @@
         return;
       }
 
-      // Add Sri Lanka country code 94 if domestic number starting with 0
       if (phone.startsWith('0')) {
         phone = '94' + phone.substring(1);
       }
 
-      const message = `*THE SAREE EMBASSY*%0A` +
-                      `Hello ${name}, thank you for your order!%0A%0A` +
-                      `*Invoice No:* ${invNo}%0A` +
-                      `*Total Amount:* LKR ${grandTotal}%0A%0A` +
-                      `We look forward to serving you again.`;
+      try {
+        const { blob } = await generatePdfBlob();
+        const file = new File([blob], `${invNo}_Saree_Embassy.pdf`, { type: 'application/pdf' });
 
-      const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
-      window.open(whatsappUrl, '_blank');
+        // Web Share API (Triggers native WhatsApp PDF attachment on mobile)
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: `Invoice ${invNo}`,
+            text: `Hello ${name}, here is your invoice from The Saree Embassy!`
+          });
+        } else {
+          // Fallback text link if Web Share API is unavailable (e.g., Desktop Browsers)
+          const message = `*THE SAREE EMBASSY*%0A` +
+                          `Hello ${name}, thank you for your order!%0A%0A` +
+                          `*Invoice No:* ${invNo}%0A` +
+                          `*Total Amount:* LKR ${grandTotal}%0A%0A` +
+                          `Address: NO. 420/5A/01, Kadawatha Road, Ganemulla%0A` +
+                          `WhatsApp: 0702394119`;
+          const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
+          window.open(whatsappUrl, '_blank');
+        }
+      } catch (err) {
+        console.error('Sharing failed:', err);
+      }
     }
 
-    function downloadPDF() {
-      const { jsPDF } = window.jspdf;
-      const element = document.getElementById('invoiceCard');
-
-      html2canvas(element, { scale: 2, useCORS: true, logging: false }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
-        pdf.save(`Saree_Embassy_Invoice_${Date.now()}.pdf`);
-      });
+    async function downloadPDF() {
+      const { pdf } = await generatePdfBlob();
+      pdf.save(`Saree_Embassy_Invoice_${Date.now()}.pdf`);
     }
 
     window.onload = function() {
