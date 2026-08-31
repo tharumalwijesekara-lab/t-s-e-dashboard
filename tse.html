@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>The Saree Embassy - Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- jsPDF & html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-amber-50/30 text-gray-800 font-sans antialiased">
+
+  <div class="flex flex-col md:flex-row min-h-screen">
+    <!-- Top Nav for Mobile / Sidebar for Desktop -->
+    <aside class="w-full md:w-64 bg-amber-900 text-amber-100 flex flex-col p-4 md:p-5 space-y-4 shrink-0">
+      <div class="flex justify-between items-center">
+        <h1 class="text-xl md:text-2xl font-serif font-bold text-amber-300">The Saree Embassy</h1>
+      </div>
+      <!-- Mobile-Scrollable Navigation Tabs -->
+      <nav class="flex md:flex-col overflow-x-auto space-x-2 md:space-x-0 md:space-y-3 pb-2 md:pb-0">
+        <button onclick="switchTab('orders')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition text-sm md:text-base">Orders & Invoice</button>
+        <button onclick="switchTab('inventory')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition text-sm md:text-base">Inventory & Pricing</button>
+        <button onclick="switchTab('analytics')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition text-sm md:text-base">Sales Analytics</button>
+        <button onclick="switchTab('customers')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition text-sm md:text-base">Customers</button>
+      </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-8">
+      
+      <!-- TAB 1: Order Summary & Invoice Generator -->
+      <section id="tab-orders" class="tab-content">
+        <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Order Summary & Invoice</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Form: 16px font sizes prevent auto-zoom in iOS Safari -->
+          <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-1">
+            <h3 class="font-semibold text-lg mb-4 text-amber-900">Create New Order</h3>
+            <form onsubmit="createOrder(event)" class="space-y-4">
+              <input type="text" id="custName" placeholder="Customer Name" class="w-full border p-3 rounded text-base" required>
+              <input type="tel" id="custPhone" placeholder="Phone Number" class="w-full border p-3 rounded text-base" required>
+              <select id="sareeSelect" class="w-full border p-3 rounded text-base bg-white" required>
+                <option value="">Select Saree Type</option>
+                <option value="Kanjeevaram Silk">Kanjeevaram Silk ($250)</option>
+                <option value="Banarasi Silk">Banarasi Silk ($200)</option>
+                <option value="Chanderi Cotton">Chanderi Cotton ($80)</option>
+              </select>
+              <input type="number" id="orderQty" placeholder="Quantity" min="1" value="1" class="w-full border p-3 rounded text-base" required>
+              <button type="submit" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900 active:scale-95 transition">Generate Order</button>
+            </form>
+          </div>
+
+          <!-- Printable Invoice Card -->
+          <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-2">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+              <h3 class="font-semibold text-lg text-amber-900">Invoice Preview</h3>
+              <button onclick="downloadPDF()" class="w-full sm:w-auto bg-amber-700 text-white px-4 py-2 rounded text-sm hover:bg-amber-800">Download PDF</button>
+            </div>
+            
+            <div id="invoiceCard" class="border p-5 rounded bg-white text-gray-800 space-y-4">
+              <div class="flex justify-between border-b pb-4">
+                <div>
+                  <h4 class="text-lg font-bold font-serif text-amber-900">THE SAREE EMBASSY</h4>
+                  <p class="text-xs text-gray-500">Luxury Handloom Sarees</p>
+                </div>
+                <div class="text-right text-xs">
+                  <p>Invoice #: <span id="invNo" class="font-bold">INV-001</span></p>
+                  <p>Date: <span id="invDate">---</span></p>
+                </div>
+              </div>
+              <div class="text-sm">
+                <p><strong>Billed To:</strong> <span id="invCustomer">---</span></p>
+                <p><strong>Phone:</strong> <span id="invPhone">---</span></p>
+              </div>
+              <table class="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr class="border-b bg-amber-50">
+                    <th class="p-2">Item</th>
+                    <th class="p-2">Qty</th>
+                    <th class="p-2 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-b">
+                    <td id="invItem" class="p-2">Select an item</td>
+                    <td id="invQty" class="p-2">0</td>
+                    <td id="invTotal" class="p-2 text-right">$0.00</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="text-center text-xs text-gray-400 mt-4">Thank you for shopping with The Saree Embassy!</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: Inventory -->
+      <section id="tab-inventory" class="tab-content hidden">
+        <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Add Saree & Pricing</h2>
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 max-w-lg">
+          <form onsubmit="alert('Item Added!'); event.preventDefault();" class="space-y-4">
+            <input type="text" placeholder="Saree Name / Collection" class="w-full border p-3 rounded text-base" required>
+            <input type="text" placeholder="Fabric (e.g. Tussar Silk)" class="w-full border p-3 rounded text-base" required>
+            <input type="number" placeholder="Selling Price ($)" class="w-full border p-3 rounded text-base" required>
+            <input type="number" placeholder="Initial Stock Quantity" class="w-full border p-3 rounded text-base" required>
+            <button type="submit" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900">Add to Catalogue</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- TAB 3: Analytics -->
+      <section id="tab-analytics" class="tab-content hidden">
+        <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Sales Performance</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-amber-100">
+            <h3 class="font-semibold text-gray-700 mb-2">Monthly Revenue ($)</h3>
+            <div class="relative h-64"><canvas id="salesChart"></canvas></div>
+          </div>
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-amber-100">
+            <h3 class="font-semibold text-gray-700 mb-2">Top Selling Fabrics</h3>
+            <div class="relative h-64"><canvas id="fabricChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: Customers -->
+      <section id="tab-customers" class="tab-content hidden">
+        <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Customer Directory</h2>
+        <div class="bg-white rounded-xl shadow-sm border border-amber-100 overflow-x-auto">
+          <table class="w-full text-left text-sm min-w-[500px]">
+            <thead class="bg-amber-100/50 text-amber-900 border-b">
+              <tr>
+                <th class="p-3">Customer Name</th>
+                <th class="p-3">Phone</th>
+                <th class="p-3">Item</th>
+                <th class="p-3">Status</th>
+              </tr>
+            </thead>
+            <tbody id="customerTableBody">
+              <tr class="border-b">
+                <td class="p-3 font-medium">Ananya Roy</td>
+                <td class="p-3">+1 555-0192</td>
+                <td class="p-3">Kanjeevaram Silk</td>
+                <td class="p-3">
+                  <select class="border p-1 rounded text-xs bg-amber-50">
+                    <option>Processing</option>
+                    <option selected>Shipped</option>
+                    <option>Delivered</option>
+                  </select>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById('tab-' + tabId).classList.remove('hidden');
+    }
+
+    const sareePrices = { "Kanjeevaram Silk": 250, "Banarasi Silk": 200, "Chanderi Cotton": 80 };
+
+    function createOrder(e) {
+      e.preventDefault();
+      const name = document.getElementById('custName').value;
+      const phone = document.getElementById('custPhone').value;
+      const saree = document.getElementById('sareeSelect').value;
+      const qty = parseInt(document.getElementById('orderQty').value);
+      const price = sareePrices[saree] || 100;
+      const total = price * qty;
+
+      document.getElementById('invCustomer').innerText = name;
+      document.getElementById('invPhone').innerText = phone;
+      document.getElementById('invItem').innerText = saree;
+      document.getElementById('invQty').innerText = qty;
+      document.getElementById('invTotal').innerText = '$' + total.toFixed(2);
+      document.getElementById('invDate').innerText = new Date().toLocaleDateString();
+      document.getElementById('invNo').innerText = 'INV-' + Math.floor(1000 + Math.random() * 9000);
+
+      const tbody = document.getElementById('customerTableBody');
+      tbody.innerHTML += `<tr class="border-b">
+        <td class="p-3 font-medium">${name}</td>
+        <td class="p-3">${phone}</td>
+        <td class="p-3">${saree} (${qty})</td>
+        <td class="p-3"><select class="border p-1 rounded text-xs bg-amber-50"><option selected>Processing</option><option>Shipped</option><option>Delivered</option></select></td>
+      </tr>`;
+    }
+
+    // iOS Safari Compatible PDF Generation
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const element = document.getElementById('invoiceCard');
+
+      html2canvas(element, { scale: 2, useCORS: true, logging: false }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a5');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+        pdf.save(`Invoice_${Date.now()}.pdf`);
+      });
+    }
+
+    window.onload = function() {
+      new Chart(document.getElementById('salesChart'), {
+        type: 'line',
+        data: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], datasets: [{ label: 'Sales ($)', data: [1200, 1900, 3000, 2500, 3200, 4500], borderColor: '#78350f', fill: false }] },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      new Chart(document.getElementById('fabricChart'), {
+        type: 'doughnut',
+        data: { labels: ['Silk', 'Cotton', 'Georgette', 'Organza'], datasets: [{ data: [55, 20, 15, 10], backgroundColor: ['#78350f', '#b45309', '#d97706', '#f59e0b'] }] },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    };
+  </script>
+</body>
+</html>
