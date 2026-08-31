@@ -93,15 +93,18 @@
             </div>
             
             <div id="invoiceCard" class="border p-6 rounded bg-white text-gray-800 space-y-4">
-              <!-- Invoice Header with Brand Title & Logo -->
+              <!-- Invoice Header with Brand Title & Logo File Upload -->
               <div class="flex justify-between items-center border-b pb-4">
                 <div class="flex items-center space-x-3">
                   <div>
                     <h4 class="text-xl font-bold font-serif text-amber-900 tracking-wide">THE SAREE EMBASSY</h4>
                     <p class="text-xs text-gray-500">Luxury Handloom Sarees</p>
                   </div>
-                  <!-- Logo image displayed to the right of name -->
-                  <img id="brandLogo" src="https://i.ibb.co/3kZNmP3/tse-logo.jpg" alt="The Saree Embassy Logo" class="h-16 w-auto object-contain border rounded p-1">
+                  <!-- Inline display of logo -->
+                  <label for="logoUpload" class="cursor-pointer">
+                    <img id="brandLogo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>" title="Click to set/change invoice logo" alt="Logo" class="h-14 w-auto object-contain border border-amber-200 rounded p-1 hover:opacity-80">
+                  </label>
+                  <input type="file" id="logoUpload" accept="image/*" class="hidden" onchange="loadLogo(this)">
                 </div>
                 <div class="text-right text-xs">
                   <p>Invoice #: <span id="invNo" class="font-bold">INV-001</span></p>
@@ -236,6 +239,18 @@
       }
     }
 
+    // Allows uploading the logo once, saved directly into browser storage
+    function loadLogo(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('brandLogo').src = e.target.result;
+          localStorage.setItem('tse_brand_logo', e.target.result);
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
     function addItemRow() {
       const container = document.getElementById('itemsContainer');
       const row = document.createElement('div');
@@ -288,7 +303,6 @@
         grandSubtotal += (origPrice * qty);
         grandTotal += lineTotal;
 
-        // Render photo directly below item name if provided
         const imgSrc = itemImageData[index];
         const photoHtml = imgSrc ? `<br><img src="${imgSrc}" class="saree-img-box" alt="Saree Photo">` : '';
 
@@ -344,6 +358,12 @@
     }
 
     window.onload = function() {
+      // Load stored logo if available
+      const savedLogo = localStorage.getItem('tse_brand_logo');
+      if (savedLogo) {
+        document.getElementById('brandLogo').src = savedLogo;
+      }
+
       new Chart(document.getElementById('salesChart'), {
         type: 'line',
         data: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], datasets: [{ label: 'Sales (LKR)', data: [450000, 620000, 890000, 750000, 910000, 1200000], borderColor: '#78350f', fill: false }] },
