@@ -89,7 +89,13 @@
           <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-2">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
               <h3 class="font-semibold text-lg text-amber-900">Invoice Preview</h3>
-              <button onclick="downloadPDF()" class="w-full sm:w-auto bg-amber-700 text-white px-4 py-2 rounded text-sm hover:bg-amber-800">Download PDF</button>
+              <div class="flex space-x-2 w-full sm:w-auto">
+                <button onclick="downloadPDF()" class="flex-1 sm:flex-none bg-amber-700 text-white px-4 py-2 rounded text-sm hover:bg-amber-800">Download PDF</button>
+                <button onclick="shareWhatsApp()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 flex items-center justify-center gap-1">
+                  <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+                  WhatsApp
+                </button>
+              </div>
             </div>
             
             <div id="invoiceCard" class="border p-6 rounded bg-white text-gray-800 space-y-4">
@@ -98,7 +104,7 @@
                 <div class="flex items-center space-x-3">
                   <div>
                     <h4 class="text-xl font-bold font-serif text-amber-900 tracking-wide">THE SAREE EMBASSY</h4>
-                    <p class="text-xs text-gray-500">Luxury Handloom Sarees</p>
+                    <p class="text-xs text-gray-500">Luxury Sarees</p>
                   </div>
                   <!-- Inline display of logo -->
                   <label for="logoUpload" class="cursor-pointer">
@@ -124,7 +130,7 @@
                 </div>
               </div>
 
-              <!-- Invoice Table without separate photo column -->
+              <!-- Invoice Table -->
               <table class="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr class="border-b bg-amber-50">
@@ -239,7 +245,6 @@
       }
     }
 
-    // Allows uploading the logo once, saved directly into browser storage
     function loadLogo(input) {
       if (input.files && input.files[0]) {
         const reader = new FileReader();
@@ -342,6 +347,32 @@
       `;
     }
 
+    function shareWhatsApp() {
+      const name = document.getElementById('invCustomer') ? document.getElementById('invCustomer').innerText : '';
+      let phone = document.getElementById('custPhone1').value.replace(/[^0-9]/g, '');
+      const invNo = document.getElementById('invNo').innerText;
+      const grandTotal = document.getElementById('invGrandTotal').innerText;
+
+      if (!phone) {
+        alert("Please enter a valid phone number first.");
+        return;
+      }
+
+      // Add Sri Lanka country code 94 if domestic number starting with 0
+      if (phone.startsWith('0')) {
+        phone = '94' + phone.substring(1);
+      }
+
+      const message = `*THE SAREE EMBASSY*%0A` +
+                      `Hello ${name}, thank you for your order!%0A%0A` +
+                      `*Invoice No:* ${invNo}%0A` +
+                      `*Total Amount:* LKR ${grandTotal}%0A%0A` +
+                      `We look forward to serving you again.`;
+
+      const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
+      window.open(whatsappUrl, '_blank');
+    }
+
     function downloadPDF() {
       const { jsPDF } = window.jspdf;
       const element = document.getElementById('invoiceCard');
@@ -358,7 +389,6 @@
     }
 
     window.onload = function() {
-      // Load stored logo if available
       const savedLogo = localStorage.getItem('tse_brand_logo');
       if (savedLogo) {
         document.getElementById('brandLogo').src = savedLogo;
