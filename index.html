@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>The Saree Embassy - Dashboard</title>
+  <title>The Saree Embassy - Business Dashboard</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js -->
@@ -15,12 +15,9 @@
 <body class="bg-amber-50/30 text-gray-800 font-sans antialiased">
 
   <div class="flex flex-col md:flex-row min-h-screen">
-    <!-- Top Nav for Mobile / Sidebar for Desktop -->
+    <!-- Mobile Nav / Desktop Sidebar -->
     <aside class="w-full md:w-64 bg-amber-900 text-amber-100 flex flex-col p-4 md:p-5 space-y-4 shrink-0">
-      <div class="flex justify-between items-center">
-        <h1 class="text-xl md:text-2xl font-serif font-bold text-amber-300">The Saree Embassy</h1>
-      </div>
-      <!-- Mobile-Scrollable Navigation Tabs -->
+      <h1 class="text-xl md:text-2xl font-serif font-bold text-amber-300">The Saree Embassy</h1>
       <nav class="flex md:flex-col overflow-x-auto space-x-2 md:space-x-0 md:space-y-3 pb-2 md:pb-0">
         <button onclick="switchTab('orders')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition text-sm md:text-base">Orders & Invoice</button>
         <button onclick="switchTab('inventory')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition text-sm md:text-base">Inventory & Pricing</button>
@@ -32,25 +29,42 @@
     <!-- Main Content Area -->
     <main class="flex-1 overflow-y-auto p-4 md:p-8">
       
-      <!-- TAB 1: Order Summary & Invoice Generator -->
+      <!-- TAB 1: Multi-Item Order Summary & Invoice -->
       <section id="tab-orders" class="tab-content">
-        <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Order Summary & Invoice</h2>
+        <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Create New Invoice</h2>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          <!-- Form: 16px font sizes prevent auto-zoom in iOS Safari -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-1">
-            <h3 class="font-semibold text-lg mb-4 text-amber-900">Create New Order</h3>
-            <form onsubmit="createOrder(event)" class="space-y-4">
+          <!-- Order Form -->
+          <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-1 space-y-4">
+            <h3 class="font-semibold text-lg text-amber-900">Customer Details</h3>
+            <form onsubmit="generateInvoice(event)" class="space-y-4">
               <input type="text" id="custName" placeholder="Customer Name" class="w-full border p-3 rounded text-base" required>
-              <input type="tel" id="custPhone" placeholder="Phone Number" class="w-full border p-3 rounded text-base" required>
-              <select id="sareeSelect" class="w-full border p-3 rounded text-base bg-white" required>
-                <option value="">Select Saree Type</option>
-                <option value="Kanjeevaram Silk">Kanjeevaram Silk ($250)</option>
-                <option value="Banarasi Silk">Banarasi Silk ($200)</option>
-                <option value="Chanderi Cotton">Chanderi Cotton ($80)</option>
-              </select>
-              <input type="number" id="orderQty" placeholder="Quantity" min="1" value="1" class="w-full border p-3 rounded text-base" required>
-              <button type="submit" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900 active:scale-95 transition">Generate Order</button>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input type="tel" id="custPhone1" placeholder="Primary Phone" class="w-full border p-3 rounded text-base" required>
+                <input type="tel" id="custPhone2" placeholder="Secondary Phone" class="w-full border p-3 rounded text-base">
+              </div>
+              <textarea id="custAddress" placeholder="Delivery Address" class="w-full border p-3 rounded text-base h-20" required></textarea>
+
+              <div class="border-t pt-4">
+                <div class="flex justify-between items-center mb-2">
+                  <h3 class="font-semibold text-base text-amber-900">Saree Items</h3>
+                  <button type="button" onclick="addItemRow()" class="text-xs bg-amber-100 text-amber-900 font-bold px-2 py-1 rounded hover:bg-amber-200">+ Add Item</button>
+                </div>
+                
+                <!-- Dynamic Items Container -->
+                <div id="itemsContainer" class="space-y-3">
+                  <div class="item-row bg-amber-50/50 p-3 rounded border border-amber-100 space-y-2">
+                    <input type="text" placeholder="Saree Type / Design" class="saree-name w-full border p-2 rounded text-base" required>
+                    <div class="grid grid-cols-3 gap-2">
+                      <input type="number" placeholder="Original Price" class="saree-orig-price w-full border p-2 rounded text-base" required>
+                      <input type="number" placeholder="Discount Price" class="saree-disc-price w-full border p-2 rounded text-base" required>
+                      <input type="number" placeholder="Qty" value="1" min="1" class="saree-qty w-full border p-2 rounded text-base" required>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900 active:scale-95 transition">Generate Invoice</button>
             </form>
           </div>
 
@@ -61,10 +75,10 @@
               <button onclick="downloadPDF()" class="w-full sm:w-auto bg-amber-700 text-white px-4 py-2 rounded text-sm hover:bg-amber-800">Download PDF</button>
             </div>
             
-            <div id="invoiceCard" class="border p-5 rounded bg-white text-gray-800 space-y-4">
+            <div id="invoiceCard" class="border p-6 rounded bg-white text-gray-800 space-y-4">
               <div class="flex justify-between border-b pb-4">
                 <div>
-                  <h4 class="text-lg font-bold font-serif text-amber-900">THE SAREE EMBASSY</h4>
+                  <h4 class="text-xl font-bold font-serif text-amber-900">THE SAREE EMBASSY</h4>
                   <p class="text-xs text-gray-500">Luxury Handloom Sarees</p>
                 </div>
                 <div class="text-right text-xs">
@@ -72,26 +86,42 @@
                   <p>Date: <span id="invDate">---</span></p>
                 </div>
               </div>
-              <div class="text-sm">
-                <p><strong>Billed To:</strong> <span id="invCustomer">---</span></p>
-                <p><strong>Phone:</strong> <span id="invPhone">---</span></p>
+
+              <div class="text-xs grid grid-cols-1 sm:grid-cols-2 gap-2 bg-amber-50/30 p-3 rounded">
+                <div>
+                  <p><strong>Customer:</strong> <span id="invCustomer">---</span></p>
+                  <p><strong>Phone 1:</strong> <span id="invPhone1">---</span></p>
+                  <p><strong>Phone 2:</strong> <span id="invPhone2">---</span></p>
+                </div>
+                <div>
+                  <p><strong>Address:</strong></p>
+                  <p id="invAddress" class="text-gray-600">---</p>
+                </div>
               </div>
-              <table class="w-full text-left text-sm border-collapse">
+
+              <table class="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr class="border-b bg-amber-50">
                     <th class="p-2">Item</th>
+                    <th class="p-2">Original Price</th>
+                    <th class="p-2">Discount Price</th>
                     <th class="p-2">Qty</th>
                     <th class="p-2 text-right">Total</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="invTableBody">
                   <tr class="border-b">
-                    <td id="invItem" class="p-2">Select an item</td>
-                    <td id="invQty" class="p-2">0</td>
-                    <td id="invTotal" class="p-2 text-right">$0.00</td>
+                    <td colspan="5" class="p-3 text-center text-gray-400">Add details & click Generate Invoice</td>
                   </tr>
                 </tbody>
               </table>
+
+              <div class="text-right text-xs space-y-1 border-t pt-3">
+                <p><strong>Subtotal (Original):</strong> LKR <span id="invSubtotal">0.00</span></p>
+                <p class="text-emerald-700"><strong>Total Discount Saved:</strong> LKR <span id="invDiscount">0.00</span></p>
+                <p class="text-base font-bold text-amber-950 pt-1">Grand Total: LKR <span id="invGrandTotal">0.00</span></p>
+              </div>
+
               <p class="text-center text-xs text-gray-400 mt-4">Thank you for shopping with The Saree Embassy!</p>
             </div>
           </div>
@@ -103,10 +133,11 @@
         <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Add Saree & Pricing</h2>
         <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 max-w-lg">
           <form onsubmit="alert('Item Added!'); event.preventDefault();" class="space-y-4">
-            <input type="text" placeholder="Saree Name / Collection" class="w-full border p-3 rounded text-base" required>
-            <input type="text" placeholder="Fabric (e.g. Tussar Silk)" class="w-full border p-3 rounded text-base" required>
-            <input type="number" placeholder="Selling Price ($)" class="w-full border p-3 rounded text-base" required>
-            <input type="number" placeholder="Initial Stock Quantity" class="w-full border p-3 rounded text-base" required>
+            <input type="text" placeholder="Saree Name / Type" class="w-full border p-3 rounded text-base" required>
+            <input type="text" placeholder="Fabric (e.g. Kanjeevaram, Tussar)" class="w-full border p-3 rounded text-base" required>
+            <input type="number" placeholder="Original Price (LKR)" class="w-full border p-3 rounded text-base" required>
+            <input type="number" placeholder="Selling / Discounted Price (LKR)" class="w-full border p-3 rounded text-base" required>
+            <input type="number" placeholder="Stock Quantity" class="w-full border p-3 rounded text-base" required>
             <button type="submit" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900">Add to Catalogue</button>
           </form>
         </div>
@@ -117,7 +148,7 @@
         <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Sales Performance</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-white p-4 rounded-xl shadow-sm border border-amber-100">
-            <h3 class="font-semibold text-gray-700 mb-2">Monthly Revenue ($)</h3>
+            <h3 class="font-semibold text-gray-700 mb-2">Monthly Revenue (LKR)</h3>
             <div class="relative h-64"><canvas id="salesChart"></canvas></div>
           </div>
           <div class="bg-white p-4 rounded-xl shadow-sm border border-amber-100">
@@ -131,20 +162,20 @@
       <section id="tab-customers" class="tab-content hidden">
         <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Customer Directory</h2>
         <div class="bg-white rounded-xl shadow-sm border border-amber-100 overflow-x-auto">
-          <table class="w-full text-left text-sm min-w-[500px]">
+          <table class="w-full text-left text-sm min-w-[600px]">
             <thead class="bg-amber-100/50 text-amber-900 border-b">
               <tr>
                 <th class="p-3">Customer Name</th>
-                <th class="p-3">Phone</th>
-                <th class="p-3">Item</th>
+                <th class="p-3">Phone Numbers</th>
+                <th class="p-3">Delivery Address</th>
                 <th class="p-3">Status</th>
               </tr>
             </thead>
             <tbody id="customerTableBody">
               <tr class="border-b">
                 <td class="p-3 font-medium">Ananya Roy</td>
-                <td class="p-3">+1 555-0192</td>
-                <td class="p-3">Kanjeevaram Silk</td>
+                <td class="p-3">+94 77 123 4567<br><span class="text-gray-400 text-xs">+94 11 234 5678</span></td>
+                <td class="p-3">No 45, Galle Road, Colombo 03</td>
                 <td class="p-3">
                   <select class="border p-1 rounded text-xs bg-amber-50">
                     <option>Processing</option>
@@ -167,35 +198,94 @@
       document.getElementById('tab-' + tabId).classList.remove('hidden');
     }
 
-    const sareePrices = { "Kanjeevaram Silk": 250, "Banarasi Silk": 200, "Chanderi Cotton": 80 };
+    // Add another item row dynamically
+    function addItemRow() {
+      const container = document.getElementById('itemsContainer');
+      const row = document.createElement('div');
+      row.className = 'item-row bg-amber-50/50 p-3 rounded border border-amber-100 space-y-2 relative';
+      row.innerHTML = `
+        <button type="button" onclick="this.parentElement.remove()" class="absolute top-1 right-2 text-xs text-red-600 font-bold">✕ Remove</button>
+        <input type="text" placeholder="Saree Type / Design" class="saree-name w-full border p-2 rounded text-base" required>
+        <div class="grid grid-cols-3 gap-2">
+          <input type="number" placeholder="Original Price" class="saree-orig-price w-full border p-2 rounded text-base" required>
+          <input type="number" placeholder="Discount Price" class="saree-disc-price w-full border p-2 rounded text-base" required>
+          <input type="number" placeholder="Qty" value="1" min="1" class="saree-qty w-full border p-2 rounded text-base" required>
+        </div>
+      `;
+      container.appendChild(row);
+    }
 
-    function createOrder(e) {
+    // Multi-Item Invoice Calculation
+    function generateInvoice(e) {
       e.preventDefault();
+      
       const name = document.getElementById('custName').value;
-      const phone = document.getElementById('custPhone').value;
-      const saree = document.getElementById('sareeSelect').value;
-      const qty = parseInt(document.getElementById('orderQty').value);
-      const price = sareePrices[saree] || 100;
-      const total = price * qty;
+      const phone1 = document.getElementById('custPhone1').value;
+      const phone2 = document.getElementById('custPhone2').value || 'N/A';
+      const address = document.getElementById('custAddress').value;
 
       document.getElementById('invCustomer').innerText = name;
-      document.getElementById('invPhone').innerText = phone;
-      document.getElementById('invItem').innerText = saree;
-      document.getElementById('invQty').innerText = qty;
-      document.getElementById('invTotal').innerText = '$' + total.toFixed(2);
+      document.getElementById('invPhone1').innerText = phone1;
+      document.getElementById('invPhone2').innerText = phone2;
+      document.getElementById('invAddress').innerText = address;
       document.getElementById('invDate').innerText = new Date().toLocaleDateString();
       document.getElementById('invNo').innerText = 'INV-' + Math.floor(1000 + Math.random() * 9000);
 
-      const tbody = document.getElementById('customerTableBody');
-      tbody.innerHTML += `<tr class="border-b">
-        <td class="p-3 font-medium">${name}</td>
-        <td class="p-3">${phone}</td>
-        <td class="p-3">${saree} (${qty})</td>
-        <td class="p-3"><select class="border p-1 rounded text-xs bg-amber-50"><option selected>Processing</option><option>Shipped</option><option>Delivered</option></select></td>
-      </tr>`;
+      const rows = document.querySelectorAll('.item-row');
+      const tbody = document.getElementById('invTableBody');
+      tbody.innerHTML = '';
+
+      let grandSubtotal = 0;
+      let grandTotal = 0;
+      let summaryItemsList = [];
+
+      rows.forEach(row => {
+        const item = row.querySelector('.saree-name').value;
+        const origPrice = parseFloat(row.querySelector('.saree-orig-price').value) || 0;
+        const discPrice = parseFloat(row.querySelector('.saree-disc-price').value) || 0;
+        const qty = parseInt(row.querySelector('.saree-qty').value) || 1;
+
+        const lineTotal = discPrice * qty;
+        grandSubtotal += (origPrice * qty);
+        grandTotal += lineTotal;
+
+        summaryItemsList.push(`${item} (${qty})`);
+
+        tbody.innerHTML += `
+          <tr class="border-b">
+            <td class="p-2 font-medium">${item}</td>
+            <td class="p-2 text-gray-500 line-through">LKR ${origPrice.toLocaleString()}</td>
+            <td class="p-2">LKR ${discPrice.toLocaleString()}</td>
+            <td class="p-2">${qty}</td>
+            <td class="p-2 text-right font-medium">LKR ${lineTotal.toLocaleString()}</td>
+          </tr>
+        `;
+      });
+
+      const totalDiscount = grandSubtotal - grandTotal;
+      document.getElementById('invSubtotal').innerText = grandSubtotal.toLocaleString();
+      document.getElementById('invDiscount').innerText = totalDiscount.toLocaleString();
+      document.getElementById('invGrandTotal').innerText = grandTotal.toLocaleString();
+
+      // Append to Customer Table
+      const custTbody = document.getElementById('customerTableBody');
+      custTbody.innerHTML += `
+        <tr class="border-b">
+          <td class="p-3 font-medium">${name}</td>
+          <td class="p-3">${phone1}<br><span class="text-gray-400 text-xs">${phone2}</span></td>
+          <td class="p-3 text-xs">${address}</td>
+          <td class="p-3">
+            <select class="border p-1 rounded text-xs bg-amber-50">
+              <option selected>Processing</option>
+              <option>Shipped</option>
+              <option>Delivered</option>
+            </select>
+          </td>
+        </tr>
+      `;
     }
 
-    // iOS Safari Compatible PDF Generation
+    // PDF Download Engine
     function downloadPDF() {
       const { jsPDF } = window.jspdf;
       const element = document.getElementById('invoiceCard');
@@ -207,20 +297,21 @@
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
         pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
-        pdf.save(`Invoice_${Date.now()}.pdf`);
+        pdf.save(`Saree_Embassy_Invoice_${Date.now()}.pdf`);
       });
     }
 
+    // Initialize Analytics
     window.onload = function() {
       new Chart(document.getElementById('salesChart'), {
         type: 'line',
-        data: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], datasets: [{ label: 'Sales ($)', data: [1200, 1900, 3000, 2500, 3200, 4500], borderColor: '#78350f', fill: false }] },
+        data: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], datasets: [{ label: 'Sales (LKR)', data: [450000, 620000, 890000, 750000, 910000, 1200000], borderColor: '#78350f', fill: false }] },
         options: { responsive: true, maintainAspectRatio: false }
       });
 
       new Chart(document.getElementById('fabricChart'), {
         type: 'doughnut',
-        data: { labels: ['Silk', 'Cotton', 'Georgette', 'Organza'], datasets: [{ data: [55, 20, 15, 10], backgroundColor: ['#78350f', '#b45309', '#d97706', '#f59e0b'] }] },
+        data: { labels: ['Kanjeevaram', 'Banarasi', 'Chanderi', 'Tussar'], datasets: [{ data: [40, 30, 20, 10], backgroundColor: ['#78350f', '#b45309', '#d97706', '#f59e0b'] }] },
         options: { responsive: true, maintainAspectRatio: false }
       });
     };
