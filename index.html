@@ -4,36 +4,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>The Saree Embassy - Business Dashboard</title>
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- jsPDF & html2canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    /* Fixed 1.5 inch x 1.5 inch logo container */
+    /* Fixed logo size for print alignment */
     .brand-logo-box {
-      width: 1.5in;
-      height: 1.5in;
+      width: 120px;
+      height: 120px;
       object-fit: cover;
       border-radius: 6px;
     }
-    /* 1 inch x 1.5 inch saree photo thumbnail */
+    /* Saree photo thumbnail inside table */
     .saree-img-box {
-      width: 1in;
-      height: 1.5in;
+      width: 90px;
+      height: 135px;
       object-fit: cover;
       border: 1px solid #e5e7eb;
       border-radius: 4px;
       margin-top: 6px;
+    }
+    /* PDF print container wrapper fixing overflow and text overlaps */
+    .pdf-render-canvas {
+      width: 800px !important;
+      max-width: none !important;
+      background-color: #ffffff !important;
     }
   </style>
 </head>
 <body class="bg-amber-50/30 text-gray-800 font-sans antialiased">
 
   <div class="flex flex-col md:flex-row min-h-screen">
-    <!-- Sidebar Navigation -->
     <aside class="w-full md:w-64 bg-amber-900 text-amber-100 flex flex-col p-4 md:p-5 space-y-4 shrink-0">
       <h1 class="text-xl md:text-2xl font-serif font-bold text-amber-300">The Saree Embassy</h1>
       <nav class="flex md:flex-col overflow-x-auto space-x-2 md:space-x-0 md:space-y-3 pb-2 md:pb-0">
@@ -44,18 +46,21 @@
       </nav>
     </aside>
 
-    <!-- Main Content -->
     <main class="flex-1 overflow-y-auto p-4 md:p-8">
       
-      <!-- TAB 1: Invoice Generator -->
       <section id="tab-orders" class="tab-content">
-        <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Create New Invoice</h2>
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
+          <h2 class="text-xl md:text-2xl font-bold font-serif text-amber-950">Create New Invoice</h2>
+          <button type="button" onclick="createNewOrder()" class="bg-amber-900 text-amber-100 hover:bg-amber-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm">
+            <span>+</span> Create New Order
+          </button>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          <!-- Order Entry Form -->
           <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-1 space-y-4">
             <h3 class="font-semibold text-lg text-amber-900">Customer Details</h3>
-            <form onsubmit="generateInvoice(event)" class="space-y-4">
+            <form id="orderForm" onsubmit="generateInvoice(event)" class="space-y-4">
               <input type="text" id="custName" placeholder="Customer Name" class="w-full border p-3 rounded text-base" required>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <input type="tel" id="custPhone1" placeholder="Primary Phone" class="w-full border p-3 rounded text-base" required>
@@ -69,7 +74,6 @@
                   <button type="button" onclick="addItemRow()" class="text-xs bg-amber-100 text-amber-900 font-bold px-2 py-1 rounded hover:bg-amber-200">+ Add Item</button>
                 </div>
                 
-                <!-- Dynamic Items Container -->
                 <div id="itemsContainer" class="space-y-3">
                   <div class="item-row bg-amber-50/50 p-3 rounded border border-amber-100 space-y-2 relative">
                     <input type="text" placeholder="Saree Type / Design Name" class="saree-name w-full border p-2 rounded text-base" required>
@@ -97,94 +101,106 @@
             </form>
           </div>
 
-          <!-- Printable Invoice Preview -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-2">
+          <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-2 overflow-x-auto">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
               <h3 class="font-semibold text-lg text-amber-900">Invoice Preview</h3>
               <div class="flex space-x-2 w-full sm:w-auto">
                 <button onclick="downloadPDF()" class="flex-1 sm:flex-none bg-amber-700 text-white px-4 py-2 rounded text-sm hover:bg-amber-800">Download PDF</button>
                 <button onclick="shareWhatsAppPDF()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 flex items-center justify-center gap-1">
-                  <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+                  <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.893 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
                   Share PDF via WhatsApp
                 </button>
               </div>
             </div>
             
-            <div id="invoiceCard" class="border p-6 rounded bg-white text-gray-800 space-y-4">
-              <!-- Invoice Header with Left-Aligned 1.5in x 1.5in Logo -->
-              <div class="flex justify-between items-start border-b pb-4">
-                <div class="flex items-center space-x-4">
-                  <!-- Logo Upload / Display on Left Side -->
-                  <label for="logoUpload" class="cursor-pointer shrink-0">
-                    <img id="brandLogo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>" title="Click to upload logo" alt="Logo" class="brand-logo-box border border-amber-200 rounded p-1 hover:opacity-80 bg-amber-50/50">
-                  </label>
-                  <input type="file" id="logoUpload" accept="image/*" class="hidden" onchange="loadLogo(this)">
-                  
-                  <div>
-                    <h4 class="text-xl font-bold font-serif text-amber-900 tracking-wide">THE SAREE EMBASSY</h4>
-                    <p class="text-xs font-semibold text-amber-800">Luxury Sarees</p>
-                    <p class="text-xs text-gray-500 mt-1">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
-                    <p class="text-xs text-gray-600">WhatsApp: <strong>0702394119</strong></p>
-                    
-                    <!-- Social Badges -->
-                    <div class="flex items-center space-x-2 mt-2 text-xs text-amber-900 font-medium">
-                      <span class="bg-amber-100 px-2 py-0.5 rounded border border-amber-200">TikTok</span>
-                      <span class="bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Facebook</span>
-                      <span class="bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Instagram</span>
+            <div id="invoiceCard" class="pdf-render-canvas border p-8 rounded bg-white text-gray-800 space-y-6">
+              <table class="w-full border-b pb-4">
+                <tr>
+                  <td class="align-top w-2/3">
+                    <div class="flex items-start space-x-4">
+                      <label for="logoUpload" class="cursor-pointer shrink-0">
+                        <img id="brandLogo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>" title="Click to upload logo" alt="Logo" class="brand-logo-box border border-amber-200 rounded p-1 bg-amber-50/50">
+                      </label>
+                      <input type="file" id="logoUpload" accept="image/*" class="hidden" onchange="loadLogo(this)">
+                      <div>
+                        <h4 class="text-2xl font-bold font-serif text-amber-900 tracking-wide">THE SAREE EMBASSY</h4>
+                        <p class="text-xs font-semibold text-amber-800">Luxury Sarees</p>
+                        <p class="text-xs text-gray-600 mt-1">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
+                        <p class="text-xs text-gray-600">WhatsApp: <strong>0702394119</strong></p>
+                        
+                        <div class="flex items-center space-x-2 mt-2 text-xs text-amber-900 font-medium">
+                          <span class="bg-amber-100 px-2 py-0.5 rounded border border-amber-200">TikTok</span>
+                          <span class="bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Facebook</span>
+                          <span class="bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Instagram</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </td>
+                  <td class="align-top text-right w-1/3 text-xs">
+                    <p class="text-sm font-bold text-amber-950">Invoice #: <span id="invNo">INV-001</span></p>
+                    <p class="text-gray-600 mt-1">Date: <span id="invDate">---</span></p>
+                  </td>
+                </tr>
+              </table>
 
-                <div class="text-right text-xs shrink-0">
-                  <p>Invoice #: <span id="invNo" class="font-bold">INV-001</span></p>
-                  <p>Date: <span id="invDate">---</span></p>
-                </div>
-              </div>
+              <table class="w-full bg-amber-50/40 p-4 rounded text-xs">
+                <tr>
+                  <td class="w-1/2 align-top p-2">
+                    <p><strong>Customer:</strong> <span id="invCustomer">---</span></p>
+                    <p class="mt-1"><strong>Phone 1:</strong> <span id="invPhone1">---</span></p>
+                    <p class="mt-1"><strong>Phone 2:</strong> <span id="invPhone2">---</span></p>
+                  </td>
+                  <td class="w-1/2 align-top p-2">
+                    <p><strong>Delivery Address:</strong></p>
+                    <p id="invAddress" class="text-gray-600 mt-1">---</p>
+                  </td>
+                </tr>
+              </table>
 
-              <div class="text-xs grid grid-cols-1 sm:grid-cols-2 gap-2 bg-amber-50/30 p-3 rounded">
-                <div>
-                  <p><strong>Customer:</strong> <span id="invCustomer">---</span></p>
-                  <p><strong>Phone 1:</strong> <span id="invPhone1">---</span></p>
-                  <p><strong>Phone 2:</strong> <span id="invPhone2">---</span></p>
-                </div>
-                <div>
-                  <p><strong>Address:</strong></p>
-                  <p id="invAddress" class="text-gray-600">---</p>
-                </div>
-              </div>
-
-              <!-- Invoice Table -->
               <table class="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr class="border-b bg-amber-50">
-                    <th class="p-2">Item Details</th>
-                    <th class="p-2">Original Price</th>
-                    <th class="p-2">Discount Price</th>
-                    <th class="p-2">Qty</th>
-                    <th class="p-2 text-right">Total</th>
+                  <tr class="border-b bg-amber-50 text-amber-900">
+                    <th class="p-3 w-2/5">Item Details</th>
+                    <th class="p-3">Original Price</th>
+                    <th class="p-3">Discount Price</th>
+                    <th class="p-3 text-center">Qty</th>
+                    <th class="p-3 text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody id="invTableBody">
                   <tr class="border-b">
-                    <td colspan="5" class="p-3 text-center text-gray-400">Add details, upload photos & click Generate Invoice</td>
+                    <td colspan="5" class="p-4 text-center text-gray-400">Add details, upload photos & click Generate Invoice</td>
                   </tr>
                 </tbody>
               </table>
 
-              <div class="text-right text-xs space-y-1 border-t pt-3">
-                <p><strong>Subtotal (Original):</strong> LKR <span id="invSubtotal">0.00</span></p>
-                <p class="text-emerald-700"><strong>Total Discount Saved:</strong> LKR <span id="invDiscount">0.00</span></p>
-                <p><strong>Delivery Cost:</strong> LKR <span id="invDelivery">0.00</span></p>
-                <p class="text-base font-bold text-amber-950 pt-1">Grand Total: LKR <span id="invGrandTotal">0.00</span></p>
+              <div class="flex justify-end pt-2">
+                <table class="w-1/2 text-right text-xs space-y-1">
+                  <tr>
+                    <td class="py-1"><strong>Subtotal (Original):</strong></td>
+                    <td class="py-1 pl-4">LKR <span id="invSubtotal">0.00</span></td>
+                  </tr>
+                  <tr class="text-emerald-700">
+                    <td class="py-1"><strong>Total Discount Saved:</strong></td>
+                    <td class="py-1 pl-4">LKR <span id="invDiscount">0.00</span></td>
+                  </tr>
+                  <tr>
+                    <td class="py-1"><strong>Delivery Cost:</strong></td>
+                    <td class="py-1 pl-4">LKR <span id="invDelivery">0.00</span></td>
+                  </tr>
+                  <tr class="text-sm font-bold text-amber-950 border-t">
+                    <td class="pt-2">Grand Total:</td>
+                    <td class="pt-2 pl-4">LKR <span id="invGrandTotal">0.00</span></td>
+                  </tr>
+                </table>
               </div>
 
-              <p class="text-center text-xs text-gray-400 mt-4">Thank you for shopping with The Saree Embassy!</p>
+              <p class="text-center text-xs text-gray-400 mt-6 pt-4 border-t">Thank you for shopping with The Saree Embassy!</p>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- TAB 2: Inventory -->
       <section id="tab-inventory" class="tab-content hidden">
         <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Add Saree & Pricing</h2>
         <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 max-w-lg">
@@ -199,7 +215,6 @@
         </div>
       </section>
 
-      <!-- TAB 3: Analytics -->
       <section id="tab-analytics" class="tab-content hidden">
         <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Sales Performance</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -214,7 +229,6 @@
         </div>
       </section>
 
-      <!-- TAB 4: Customers -->
       <section id="tab-customers" class="tab-content hidden">
         <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Customer Directory</h2>
         <div class="bg-white rounded-xl shadow-sm border border-amber-100 overflow-x-auto">
@@ -228,18 +242,6 @@
               </tr>
             </thead>
             <tbody id="customerTableBody">
-              <tr class="border-b">
-                <td class="p-3 font-medium">Ananya Roy</td>
-                <td class="p-3">+94 77 123 4567<br><span class="text-gray-400 text-xs">+94 11 234 5678</span></td>
-                <td class="p-3 text-xs">No 45, Galle Road, Colombo 03</td>
-                <td class="p-3">
-                  <select class="border p-1 rounded text-xs bg-amber-50">
-                    <option>Processing</option>
-                    <option selected>Shipped</option>
-                    <option>Delivered</option>
-                  </select>
-                </td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -254,7 +256,7 @@
       document.getElementById('tab-' + tabId).classList.remove('hidden');
     }
 
-    const itemImageData = {};
+    let itemImageData = {};
 
     function previewImage(input) {
       const row = input.closest('.item-row');
@@ -300,6 +302,41 @@
       container.appendChild(row);
     }
 
+    function createNewOrder() {
+      document.getElementById('orderForm').reset();
+      itemImageData = {};
+      const container = document.getElementById('itemsContainer');
+      container.innerHTML = `
+        <div class="item-row bg-amber-50/50 p-3 rounded border border-amber-100 space-y-2 relative">
+          <input type="text" placeholder="Saree Type / Design Name" class="saree-name w-full border p-2 rounded text-base" required>
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-gray-600">Upload Photo:</label>
+            <input type="file" accept="image/*" class="saree-photo w-full text-xs border p-1 rounded bg-white" onchange="previewImage(this)">
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <input type="number" placeholder="Original Price" class="saree-orig-price w-full border p-2 rounded text-base" required>
+            <input type="number" placeholder="Discount Price" class="saree-disc-price w-full border p-2 rounded text-base" required>
+            <input type="number" placeholder="Qty" value="1" min="1" class="saree-qty w-full border p-2 rounded text-base" required>
+          </div>
+        </div>
+      `;
+      document.getElementById('invCustomer').innerText = '---';
+      document.getElementById('invPhone1').innerText = '---';
+      document.getElementById('invPhone2').innerText = '---';
+      document.getElementById('invAddress').innerText = '---';
+      document.getElementById('invDate').innerText = '---';
+      document.getElementById('invNo').innerText = 'INV-001';
+      document.getElementById('invSubtotal').innerText = '0.00';
+      document.getElementById('invDiscount').innerText = '0.00';
+      document.getElementById('invDelivery').innerText = '0.00';
+      document.getElementById('invGrandTotal').innerText = '0.00';
+      document.getElementById('invTableBody').innerHTML = `
+        <tr class="border-b">
+          <td colspan="5" class="p-4 text-center text-gray-400">Add details, upload photos & click Generate Invoice</td>
+        </tr>
+      `;
+    }
+
     function generateInvoice(e) {
       e.preventDefault();
       
@@ -314,7 +351,8 @@
       document.getElementById('invPhone2').innerText = phone2;
       document.getElementById('invAddress').innerText = address;
       document.getElementById('invDate').innerText = new Date().toLocaleDateString();
-      document.getElementById('invNo').innerText = 'INV-' + Math.floor(1000 + Math.random() * 9000);
+      const invNo = 'INV-' + Math.floor(1000 + Math.random() * 9000);
+      document.getElementById('invNo').innerText = invNo;
 
       const rows = document.querySelectorAll('.item-row');
       const tbody = document.getElementById('invTableBody');
@@ -338,14 +376,14 @@
 
         tbody.innerHTML += `
           <tr class="border-b">
-            <td class="p-2 align-top">
+            <td class="p-3 align-top">
               <span class="font-medium text-sm text-gray-900">${item}</span>
               ${photoHtml}
             </td>
-            <td class="p-2 text-gray-500 line-through align-top">LKR ${origPrice.toLocaleString()}</td>
-            <td class="p-2 align-top">LKR ${discPrice.toLocaleString()}</td>
-            <td class="p-2 align-top">${qty}</td>
-            <td class="p-2 text-right font-medium align-top">LKR ${lineTotal.toLocaleString()}</td>
+            <td class="p-3 text-gray-500 line-through align-top">LKR ${origPrice.toLocaleString()}</td>
+            <td class="p-3 align-top">LKR ${discPrice.toLocaleString()}</td>
+            <td class="p-3 text-center align-top">${qty}</td>
+            <td class="p-3 text-right font-medium align-top">LKR ${lineTotal.toLocaleString()}</td>
           </tr>
         `;
       });
@@ -358,32 +396,84 @@
       document.getElementById('invDelivery').innerText = deliveryCost.toLocaleString();
       document.getElementById('invGrandTotal').innerText = finalGrandTotal.toLocaleString();
 
+      const newCustomer = {
+        name: name,
+        phone1: phone1,
+        phone2: phone2,
+        address: address,
+        status: 'Processing'
+      };
+
+      const savedCustomers = JSON.parse(localStorage.getItem('tse_customers') || '[]');
+      savedCustomers.unshift(newCustomer);
+      localStorage.setItem('tse_customers', JSON.stringify(savedCustomers));
+      
+      renderCustomers();
+    }
+
+    function renderCustomers() {
+      const savedCustomers = JSON.parse(localStorage.getItem('tse_customers') || '[]');
       const custTbody = document.getElementById('customerTableBody');
-      custTbody.innerHTML += `
+      
+      if (savedCustomers.length === 0) {
+        custTbody.innerHTML = `
+          <tr class="border-b">
+            <td class="p-3 font-medium">Ananya Roy</td>
+            <td class="p-3">+94 77 123 4567<br><span class="text-gray-400 text-xs">+94 11 234 5678</span></td>
+            <td class="p-3 text-xs">No 45, Galle Road, Colombo 03</td>
+            <td class="p-3">
+              <select class="border p-1 rounded text-xs bg-amber-50">
+                <option>Processing</option>
+                <option selected>Shipped</option>
+                <option>Delivered</option>
+              </select>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      custTbody.innerHTML = savedCustomers.map((cust, idx) => `
         <tr class="border-b">
-          <td class="p-3 font-medium">${name}</td>
-          <td class="p-3">${phone1}<br><span class="text-gray-400 text-xs">${phone2}</span></td>
-          <td class="p-3 text-xs">${address}</td>
+          <td class="p-3 font-medium">${cust.name}</td>
+          <td class="p-3">${cust.phone1}<br><span class="text-gray-400 text-xs">${cust.phone2}</span></td>
+          <td class="p-3 text-xs">${cust.address}</td>
           <td class="p-3">
-            <select class="border p-1 rounded text-xs bg-amber-50">
-              <option selected>Processing</option>
-              <option>Shipped</option>
-              <option>Delivered</option>
+            <select class="border p-1 rounded text-xs bg-amber-50" onchange="updateCustomerStatus(${idx}, this.value)">
+              <option ${cust.status === 'Processing' ? 'selected' : ''}>Processing</option>
+              <option ${cust.status === 'Shipped' ? 'selected' : ''}>Shipped</option>
+              <option ${cust.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
             </select>
           </td>
         </tr>
-      `;
+      `).join('');
+    }
+
+    function updateCustomerStatus(index, newStatus) {
+      const savedCustomers = JSON.parse(localStorage.getItem('tse_customers') || '[]');
+      if (savedCustomers[index]) {
+        savedCustomers[index].status = newStatus;
+        localStorage.setItem('tse_customers', JSON.stringify(savedCustomers));
+      }
     }
 
     async function generatePdfBlob() {
       const { jsPDF } = window.jspdf;
       const element = document.getElementById('invoiceCard');
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
+      
+      const canvas = await html2canvas(element, { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false,
+        windowWidth: 1024
+      });
+
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+      
+      pdf.addImage(imgData, 'PNG', 0, 5, pdfWidth, pdfHeight);
       return { pdf, blob: pdf.output('blob') };
     }
 
@@ -406,7 +496,6 @@
         const { blob } = await generatePdfBlob();
         const file = new File([blob], `${invNo}_Saree_Embassy.pdf`, { type: 'application/pdf' });
 
-        // Web Share API (Triggers native WhatsApp PDF attachment on mobile)
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
@@ -414,7 +503,6 @@
             text: `Hello ${name}, here is your invoice from The Saree Embassy!`
           });
         } else {
-          // Fallback text link if Web Share API is unavailable (e.g., Desktop Browsers)
           const message = `*THE SAREE EMBASSY*%0A` +
                           `Hello ${name}, thank you for your order!%0A%0A` +
                           `*Invoice No:* ${invNo}%0A` +
@@ -439,6 +527,8 @@
       if (savedLogo) {
         document.getElementById('brandLogo').src = savedLogo;
       }
+
+      renderCustomers();
 
       new Chart(document.getElementById('salesChart'), {
         type: 'line',
