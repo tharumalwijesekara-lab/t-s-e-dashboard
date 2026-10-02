@@ -15,7 +15,6 @@
     .delivery-label-canvas { width: 680px; background-color: #ffffff !important; }
     .cod-sticker-area { width: 100%; min-height: 110px; border: 2px dashed #92400e; border-radius: 6px; display: flex; align-items: center; justify-content: center; text-align: center; background-color: #fffbeb; padding: 8px; }
     .invoice-preview-wrapper { width: 100%; overflow-x: auto; display: flex; justify-content: flex-start; }
-    #offscreenRender { position: fixed; left: -9999px; top: -9999px; width: 800px; background: white; z-index: -1000; }
   </style>
 </head>
 <body class="bg-[#fefce8] text-gray-800 font-sans antialiased">
@@ -477,7 +476,7 @@
       const element = document.getElementById(elementId);
       if (!element) return;
 
-      html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
+      html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, logging: false }).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF(orientation, 'mm', format);
         const width = pdf.internal.pageSize.getWidth();
@@ -487,10 +486,9 @@
       });
     }
 
-    async function generatePdfBlob(elementId, format = 'a4', orientation = 'p') {
+    async function generatePdfBlob(element, format = 'a4', orientation = 'p') {
       const { jsPDF } = window.jspdf;
-      const element = document.getElementById(elementId);
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, logging: false });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF(orientation, 'mm', format);
       const width = pdf.internal.pageSize.getWidth();
@@ -502,21 +500,34 @@
     async function renderInvoiceDivAndGetBlob(invoiceData) {
       const tempDiv = document.createElement('div');
       tempDiv.className = 'pdf-render-canvas border p-8 rounded bg-white text-gray-800 space-y-6 shadow-md';
+      
       tempDiv.style.position = 'fixed';
-      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.left = '-2000px';
+      tempDiv.style.width = '800px';
+      tempDiv.style.zIndex = '-9999';
 
       const logoSrc = localStorage.getItem('sareeEmbassyLogo') || '';
       const rawItems = parseItems(invoiceData);
 
-      const itemsRowsHtml = rawItems.map(it => `
-        <tr class="border-b">
-          <td class="p-3"><p class="font-semibold text-gray-800">${it.name}</p>${it.imgSrc ? `<img src="${it.imgSrc}" class="saree-img-box">` : ''}</td>
-          <td class="p-3 text-gray-500 line-through">LKR ${parseFloat(it.origPrice || 0).toFixed(2)}</td>
-          <td class="p-3 font-semibold text-amber-900">LKR ${parseFloat(it.discPrice || 0).toFixed(2)}</td>
-          <td class="p-3 text-center">${it.qty || 1}</td>
-          <td class="p-3 text-right font-bold text-gray-800">LKR ${(parseFloat(it.discPrice || 0) * parseInt(it.qty || 1)).toFixed(2)}</td>
-        </tr>
-      `).join('');
+      const itemsRowsHtml = rawItems.map(it => {
+        const imageHtml = (it.imgSrc && it.imgSrc.startsWith('data:image')) 
+          ? `<img src="${it.imgSrc}" class="saree-img-box">` 
+          : '';
+
+        return `
+          <tr class="border-b">
+            <td class="p-3">
+              <p class="font-semibold text-gray-800">${it.name || 'Saree Item'}</p>
+              ${imageHtml}
+            </td>
+            <td class="p-3 text-gray-500 line-through">LKR ${parseFloat(it.origPrice || 0).toFixed(2)}</td>
+            <td class="p-3 font-semibold text-amber-900">LKR ${parseFloat(it.discPrice || 0).toFixed(2)}</td>
+            <td class="p-3 text-center">${it.qty || 1}</td>
+            <td class="p-3 text-right font-bold text-gray-800">LKR ${(parseFloat(it.discPrice || 0) * parseInt(it.qty || 1)).toFixed(2)}</td>
+          </tr>
+        `;
+      }).join('');
 
       const subtotalVal = parseFloat(invoiceData.subtotal) || parseFloat(invoiceData.grandTotal) || 0;
       const discountVal = parseFloat(invoiceData.discount) || 0;
@@ -534,7 +545,7 @@
             </div>
           </div>
           <div class="text-right w-1/3">
-            <p class="text-sm font-bold text-amber-950">Invoice #: ${invoiceData.invNo}</p>
+            <p class="text-sm font-bold text-amber-950">Invoice #: ${invoiceData.invNo || '---'}</p>
             <p class="text-xs text-gray-600 mt-1">Date: ${invoiceData.date || ''}</p>
           </div>
         </div>
@@ -577,9 +588,16 @@
       `;
 
       document.body.appendChild(tempDiv);
-      const pdfBlob = await generatePdfBlob(tempDiv);
-      document.body.removeChild(tempDiv);
-      return pdfBlob;
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      try {
+        const pdfBlob = await generatePdfBlob(tempDiv, 'a4', 'p');
+        document.body.removeChild(tempDiv);
+        return pdfBlob;
+      } catch (err) {
+        if (document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
+        throw err;
+      }
     }
 
     async function sharePdfWithWhatsApp(filename, messageText, pdfBlob) {
@@ -653,7 +671,7 @@
       const del = document.getElementById('lblDelivery').innerText;
       const grandTotal = document.getElementById('lblGrandTotal').innerText;
 
-      const pdfBlob = await generatePdfBlob('deliveryLabelCard', 'a5', 'l');
+      const pdfBlob = await generatePdfBlob(document.getElementById('deliveryLabelCard'), 'a5', 'l');
       const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\n\n*Cash Collection Breakdown:*\nTotal: LKR ${total}\nDelivery: LKR ${del}\n*Grand Total: LKR ${grandTotal}*`;
       await sharePdfWithWhatsApp(`LABEL-${invNo}`, message, pdfBlob);
     }
@@ -668,12 +686,12 @@
 
         const pdfBlob = await renderInvoiceDivAndGetBlob(item);
         const grandTotalVal = parseFloat(item.grandTotal || 0).toLocaleString();
-        const message = `Hello ${item.name},\n\nThank you for shopping with *The Saree Embassy*!\n\nInvoice Ref: *${item.invNo}*\nItems: ${item.itemsSummary || 'Saree Order'}\nTotal Amount: *LKR ${grandTotalVal}*`;
+        const message = `Hello ${item.name || 'Customer'},\n\nThank you for shopping with *The Saree Embassy*!\n\nInvoice Ref: *${item.invNo}*\nItems: ${item.itemsSummary || 'Saree Order'}\nTotal Amount: *LKR ${grandTotalVal}*`;
         
         await sharePdfWithWhatsApp(`Invoice-${item.invNo}`, message, pdfBlob);
       } catch (err) {
-        alert("Failed to generate PDF invoice. Please check console.");
-        console.error(err);
+        console.error("Directory Invoice PDF Error:", err);
+        alert(`Could not generate PDF for Invoice #${invNo}. Please check browser console.`);
       }
     }
 
@@ -691,8 +709,12 @@
 
         const tempDiv = document.createElement('div');
         tempDiv.className = 'delivery-label-canvas border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4 shadow-md shrink-0';
+        
         tempDiv.style.position = 'fixed';
-        tempDiv.style.left = '-9999px';
+        tempDiv.style.top = '0';
+        tempDiv.style.left = '-2000px';
+        tempDiv.style.width = '680px';
+        tempDiv.style.zIndex = '-9999';
 
         tempDiv.innerHTML = `
           <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-center">
@@ -744,14 +766,16 @@
         `;
 
         document.body.appendChild(tempDiv);
+        await new Promise(resolve => setTimeout(resolve, 150));
+
         const pdfBlob = await generatePdfBlob(tempDiv, 'a5', 'l');
         document.body.removeChild(tempDiv);
 
         const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${item.invNo}\nCustomer: ${item.name}\nPhone: ${item.phone1}${item.phone2 ? ' / ' + item.phone2 : ''}\nAddress: ${item.address}\n\n*Collect Cash Breakdown:*\nTotal: LKR ${itemsTotal.toLocaleString()}\nDelivery: LKR ${delivery.toLocaleString()}\n*Grand Total: LKR ${grandTotal.toLocaleString()}*`;
         await sharePdfWithWhatsApp(`LABEL-${item.invNo}`, message, pdfBlob);
       } catch (err) {
-        alert("Failed to generate label PDF. Please check console.");
-        console.error(err);
+        console.error("Directory Label PDF Error:", err);
+        alert(`Could not generate label for Invoice #${invNo}. Please check browser console.`);
       }
     }
 
