@@ -281,9 +281,6 @@
     </main>
   </div>
 
-  <!-- Offscreen hidden rendering container for Directory PDF generation -->
-  <div id="offscreenContainer"></div>
-
   <script>
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi9XxpdFjsvRRPwHl0RGY6wiizgJuyRk6r7jM7UgPeXDZoVQ_JD7rTFDZizwQcyzSX/exec";
     let cachedSheetData = [];
@@ -485,69 +482,20 @@
       return pdf.output('blob');
     }
 
-    // Share PDF + Text using Native Web Share API
-    async function sharePdfWithWhatsApp(elementId, filename, messageText, format = 'a4', orientation = 'p') {
-      try {
-        const pdfBlob = await generatePdfBlob(elementId, format, orientation);
-        const file = new File([pdfBlob], `${filename}.pdf`, { type: 'application/pdf' });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: filename,
-            text: messageText
-          });
-        } else {
-          // Fallback if browser doesn't support sharing files directly
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(pdfBlob);
-          link.download = `${filename}.pdf`;
-          link.click();
-          
-          alert('PDF downloaded! Opening WhatsApp to attach file...');
-          window.open(`https://wa.me/?text=${encodeURIComponent(messageText)}`, '_blank');
-        }
-      } catch (err) {
-        console.error("Sharing failed:", err);
-      }
-    }
-
-    function shareWhatsAppPDF() {
-      const invNo = document.getElementById('invNo').innerText;
-      const custName = document.getElementById('invCustomer').innerText;
-      const total = document.getElementById('invGrandTotal').innerText;
-      const message = `Hello ${custName},\n\nThank you for shopping with *The Saree Embassy*!\n\nYour invoice (*${invNo}*) for LKR ${total} is attached below.`;
-      sharePdfWithWhatsApp('invoiceCard', `Invoice-${invNo}`, message);
-    }
-
-    function shareLabelWhatsApp() {
-      const invNo = document.getElementById('lblInvNo').innerText;
-      const custName = document.getElementById('lblCustName').innerText;
-      const address = document.getElementById('lblAddress').innerText;
-      const total = document.getElementById('lblSubtotal').innerText;
-      const del = document.getElementById('lblDelivery').innerText;
-      const grandTotal = document.getElementById('lblGrandTotal').innerText;
-      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\n\n*Cash Collection Breakdown:*\nTotal: LKR ${total}\nDelivery: LKR ${del}\n*Grand Total: LKR ${grandTotal}*`;
-      sharePdfWithWhatsApp('deliveryLabelCard', `LABEL-${invNo}`, message, 'a5', 'l');
-    }
-
-    // Share Invoice PDF from Customer Directory
-    async function shareDirectoryInvoiceWA(invNo) {
-      const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
-      if (!item) return;
-
-      // Render invoice temporary offscreen
+    // Shared PDF Generation Helper for Tab 1 & Tab 4
+    async function renderInvoiceDivAndGetBlob(invoiceData) {
       const tempDiv = document.createElement('div');
-      tempDiv.id = 'tempInvRender';
       tempDiv.className = 'pdf-render-canvas border p-8 rounded bg-white text-gray-800 space-y-6 shadow-md';
       tempDiv.style.position = 'fixed';
       tempDiv.style.left = '-9999px';
 
       const logoSrc = localStorage.getItem('sareeEmbassyLogo') || '';
       let rawItems = [];
-      try { rawItems = JSON.parse(item.rawItemsJson); } catch(e){}
+      try {
+        rawItems = typeof invoiceData.rawItemsJson === 'string' ? JSON.parse(invoiceData.rawItemsJson) : invoiceData.rawItems;
+      } catch(e) {}
 
-      let itemsRowsHtml = rawItems.map(it => `
+      const itemsRowsHtml = (rawItems || []).map(it => `
         <tr class="border-b">
           <td class="p-3"><p class="font-semibold text-gray-800">${it.name}</p>${it.imgSrc ? `<img src="${it.imgSrc}" class="saree-img-box">` : ''}</td>
           <td class="p-3 text-gray-500 line-through">LKR ${(it.origPrice || 0).toFixed(2)}</td>
@@ -568,21 +516,21 @@
             </div>
           </div>
           <div class="text-right w-1/3">
-            <p class="text-sm font-bold text-amber-950">Invoice #: ${item.invNo}</p>
-            <p class="text-xs text-gray-600 mt-1">Date: ${item.date}</p>
+            <p class="text-sm font-bold text-amber-950">Invoice #: ${invoiceData.invNo}</p>
+            <p class="text-xs text-gray-600 mt-1">Date: ${invoiceData.date}</p>
           </div>
         </div>
 
         <table class="w-full bg-[#fffbeb] p-4 rounded text-xs border border-amber-100">
           <tr>
             <td class="w-1/2 align-top p-2">
-              <p><strong>Customer:</strong> ${item.name}</p>
-              <p class="mt-1"><strong>Phone 1:</strong> ${item.phone1}</p>
-              <p class="mt-1"><strong>Phone 2:</strong> ${item.phone2 || 'N/A'}</p>
+              <p><strong>Customer:</strong> ${invoiceData.name}</p>
+              <p class="mt-1"><strong>Phone 1:</strong> ${invoiceData.phone1}</p>
+              <p class="mt-1"><strong>Phone 2:</strong> ${invoiceData.phone2 || 'N/A'}</p>
             </td>
             <td class="w-1/2 align-top p-2">
               <p><strong>Address:</strong></p>
-              <p class="text-gray-600 mt-1">${item.address}</p>
+              <p class="text-gray-600 mt-1">${invoiceData.address}</p>
             </td>
           </tr>
         </table>
@@ -602,18 +550,113 @@
 
         <div class="flex justify-end pt-2">
           <table class="w-1/2 text-right text-xs space-y-1">
-            <tr><td class="py-1"><strong>Subtotal:</strong></td><td class="py-1 pl-4">LKR ${(item.subtotal || 0).toFixed(2)}</td></tr>
-            <tr class="text-emerald-700"><td class="py-1"><strong>Discount Saved:</strong></td><td class="py-1 pl-4">LKR ${(item.discount || 0).toFixed(2)}</td></tr>
-            <tr><td class="py-1"><strong>Delivery:</strong></td><td class="py-1 pl-4">LKR ${(item.deliveryCost || 0).toFixed(2)}</td></tr>
-            <tr class="text-sm font-bold text-amber-950 border-t"><td class="pt-2">Grand Total:</td><td class="pt-2 pl-4">LKR ${(item.grandTotal || 0).toFixed(2)}</td></tr>
+            <tr><td class="py-1"><strong>Subtotal:</strong></td><td class="py-1 pl-4">LKR ${(invoiceData.subtotal || 0).toFixed(2)}</td></tr>
+            <tr class="text-emerald-700"><td class="py-1"><strong>Discount Saved:</strong></td><td class="py-1 pl-4">LKR ${(invoiceData.discount || 0).toFixed(2)}</td></tr>
+            <tr><td class="py-1"><strong>Delivery:</strong></td><td class="py-1 pl-4">LKR ${(invoiceData.deliveryCost || 0).toFixed(2)}</td></tr>
+            <tr class="text-sm font-bold text-amber-950 border-t"><td class="pt-2">Grand Total:</td><td class="pt-2 pl-4">LKR ${(invoiceData.grandTotal || 0).toFixed(2)}</td></tr>
           </table>
         </div>
       `;
 
       document.body.appendChild(tempDiv);
-      const message = `Hello ${item.name},\n\nThank you for shopping with *The Saree Embassy*!\n\nInvoice Ref: *${item.invNo}*\nItems: ${item.itemsSummary}\nTotal Amount: *LKR ${(item.grandTotal || 0).toLocaleString()}*`;
-      await sharePdfWithWhatsApp('tempInvRender', `Invoice-${item.invNo}`, message);
+      const pdfBlob = await generatePdfBlob(tempDiv);
       document.body.removeChild(tempDiv);
+      return pdfBlob;
+    }
+
+    // Share PDF via Native Web Share API
+    async function sharePdfWithWhatsApp(filename, messageText, pdfBlob) {
+      try {
+        const file = new File([pdfBlob], `${filename}.pdf`, { type: 'application/pdf' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: filename,
+            text: messageText
+          });
+        } else {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(pdfBlob);
+          link.download = `${filename}.pdf`;
+          link.click();
+          
+          alert('PDF downloaded! Opening WhatsApp to attach file...');
+          window.open(`https://wa.me/?text=${encodeURIComponent(messageText)}`, '_blank');
+        }
+      } catch (err) {
+        console.error("Sharing failed:", err);
+      }
+    }
+
+    async function shareWhatsAppPDF() {
+      const invNo = document.getElementById('invNo').innerText;
+      const custName = document.getElementById('invCustomer').innerText;
+      const total = document.getElementById('invGrandTotal').innerText;
+
+      const rows = document.querySelectorAll('.item-row');
+      let rawItems = [];
+      let subtotalOrig = 0, itemsDiscountedTotal = 0;
+
+      rows.forEach(row => {
+        const sareeName = row.querySelector('.saree-name').value;
+        const origPrice = parseFloat(row.querySelector('.saree-orig-price').value) || 0;
+        const discPrice = parseFloat(row.querySelector('.saree-disc-price').value) || 0;
+        const qty = parseInt(row.querySelector('.saree-qty').value) || 1;
+        const imgBox = row.querySelector('.saree-img-box');
+
+        rawItems.push({ name: sareeName, origPrice, discPrice, qty, imgSrc: imgBox ? imgBox.src : '' });
+        subtotalOrig += (origPrice * qty);
+        itemsDiscountedTotal += (discPrice * qty);
+      });
+
+      const deliveryCost = parseFloat(document.getElementById('deliveryCostInput').value) || 0;
+      const totalDiscount = subtotalOrig - itemsDiscountedTotal;
+      const finalGrandTotal = itemsDiscountedTotal + deliveryCost;
+
+      const currentOrderData = {
+        invNo,
+        date: document.getElementById('invDate').innerText,
+        name: custName,
+        phone1: document.getElementById('invPhone1').innerText,
+        phone2: document.getElementById('invPhone2').innerText,
+        address: document.getElementById('invAddress').innerText,
+        subtotal: subtotalOrig,
+        discount: totalDiscount,
+        deliveryCost,
+        grandTotal: finalGrandTotal,
+        rawItems
+      };
+
+      const pdfBlob = await renderInvoiceDivAndGetBlob(currentOrderData);
+      const message = `Hello ${custName},\n\nThank you for shopping with *The Saree Embassy*!\n\nYour invoice (*${invNo}*) for LKR ${total} is attached below.`;
+      
+      await sharePdfWithWhatsApp(`Invoice-${invNo}`, message, pdfBlob);
+    }
+
+    async function shareLabelWhatsApp() {
+      const invNo = document.getElementById('lblInvNo').innerText;
+      const custName = document.getElementById('lblCustName').innerText;
+      const address = document.getElementById('lblAddress').innerText;
+      const total = document.getElementById('lblSubtotal').innerText;
+      const del = document.getElementById('lblDelivery').innerText;
+      const grandTotal = document.getElementById('lblGrandTotal').innerText;
+
+      const pdfBlob = await generatePdfBlob('deliveryLabelCard', 'a5', 'l');
+      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\n\n*Cash Collection Breakdown:*\nTotal: LKR ${total}\nDelivery: LKR ${del}\n*Grand Total: LKR ${grandTotal}*`;
+      
+      await sharePdfWithWhatsApp(`LABEL-${invNo}`, message, pdfBlob);
+    }
+
+    // Share Invoice PDF from Customer Directory (Uses identical structure)
+    async function shareDirectoryInvoiceWA(invNo) {
+      const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
+      if (!item) return;
+
+      const pdfBlob = await renderInvoiceDivAndGetBlob(item);
+      const message = `Hello ${item.name},\n\nThank you for shopping with *The Saree Embassy*!\n\nInvoice Ref: *${item.invNo}*\nItems: ${item.itemsSummary}\nTotal Amount: *LKR ${(item.grandTotal || 0).toLocaleString()}*`;
+      
+      await sharePdfWithWhatsApp(`Invoice-${item.invNo}`, message, pdfBlob);
     }
 
     // Share Label PDF from Customer Directory
@@ -626,7 +669,6 @@
       const grandTotal = item.grandTotal || 0;
 
       const tempDiv = document.createElement('div');
-      tempDiv.id = 'tempLblRender';
       tempDiv.className = 'delivery-label-canvas border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4 shadow-md shrink-0';
       tempDiv.style.position = 'fixed';
       tempDiv.style.left = '-9999px';
@@ -681,9 +723,11 @@
       `;
 
       document.body.appendChild(tempDiv);
-      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${item.invNo}\nCustomer: ${item.name}\nPhone: ${item.phone1}${item.phone2 ? ' / ' + item.phone2 : ''}\nAddress: ${item.address}\n\n*Collect Cash Breakdown:*\nTotal: LKR ${itemsTotal.toLocaleString()}\nDelivery: LKR ${delivery.toLocaleString()}\n*Grand Total: LKR ${grandTotal.toLocaleString()}*`;
-      await sharePdfWithWhatsApp('tempLblRender', `LABEL-${item.invNo}`, message, 'a5', 'l');
+      const pdfBlob = await generatePdfBlob(tempDiv, 'a5', 'l');
       document.body.removeChild(tempDiv);
+
+      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${item.invNo}\nCustomer: ${item.name}\nPhone: ${item.phone1}${item.phone2 ? ' / ' + item.phone2 : ''}\nAddress: ${item.address}\n\n*Collect Cash Breakdown:*\nTotal: LKR ${itemsTotal.toLocaleString()}\nDelivery: LKR ${delivery.toLocaleString()}\n*Grand Total: LKR ${grandTotal.toLocaleString()}*`;
+      await sharePdfWithWhatsApp(`LABEL-${item.invNo}`, message, pdfBlob);
     }
 
     function editOrder(invNo) {
