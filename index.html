@@ -469,15 +469,16 @@
       });
     }
 
+    // Opens contact chooser
     function shareWhatsAppPDF() {
       const invNo = document.getElementById('invNo').innerText;
       const custName = document.getElementById('invCustomer').innerText;
-      const phone = document.getElementById('invPhone1').innerText.replace(/[^0-9]/g, '');
       const total = document.getElementById('invGrandTotal').innerText;
       const message = `Hello ${custName},\n\nThank you for shopping with *The Saree Embassy*!\n\nYour invoice (*${invNo}*) for LKR ${total} has been generated.`;
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
 
+    // Opens contact chooser
     function shareLabelWhatsApp() {
       const invNo = document.getElementById('lblInvNo').innerText;
       const custName = document.getElementById('lblCustName').innerText;
@@ -485,21 +486,20 @@
       const total = document.getElementById('lblSubtotal').innerText;
       const del = document.getElementById('lblDelivery').innerText;
       const grandTotal = document.getElementById('lblGrandTotal').innerText;
-      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\n\n*Cash Collection Breakdown:* \nTotal: LKR ${total}\nDelivery: LKR ${del}\n*Grand Total: LKR ${grandTotal}*`;
+      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\n\n*Cash Collection Breakdown:*\nTotal: LKR ${total}\nDelivery: LKR ${del}\n*Grand Total: LKR ${grandTotal}*`;
       window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
 
-    // Share Invoice via WhatsApp from Directory
+    // Opens contact chooser from Directory
     function shareDirectoryInvoiceWA(invNo) {
       const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
       if (!item) return;
 
-      const phone = String(item.phone1 || '').replace(/[^0-9]/g, '');
       const message = `Hello ${item.name},\n\nThank you for shopping with *The Saree Embassy*!\n\nInvoice Ref: *${item.invNo}*\nItems: ${item.itemsSummary}\nTotal Amount: *LKR ${(item.grandTotal || 0).toLocaleString()}*`;
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
 
-    // Share Delivery Label Details via WhatsApp from Directory
+    // Opens contact chooser from Directory
     function shareDirectoryLabelWA(invNo) {
       const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
       if (!item) return;
@@ -654,7 +654,6 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      // Restore saved logo from localStorage
       const savedLogo = localStorage.getItem('sareeEmbassyLogo');
       if (savedLogo) {
         document.getElementById('brandLogo').src = savedLogo;
