@@ -56,6 +56,15 @@
       justify-content: flex-start;
     }
 
+    /* Offscreen hidden container for background PDF generation */
+    #pdfRenderContainer {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      width: 800px;
+      background: white;
+    }
+
     @media print {
       body * {
         visibility: hidden;
@@ -160,6 +169,7 @@
                 <h3 class="font-semibold text-lg text-amber-900">1. Invoice Preview</h3>
                 <div class="flex space-x-2 w-full sm:w-auto">
                   <button onclick="downloadPDF()" class="flex-1 sm:flex-none bg-amber-800 text-white px-3 py-1.5 rounded text-xs hover:bg-amber-900">Download Invoice PDF</button>
+                  <button onclick="shareWhatsAppPDF()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-700">Share Invoice via WA</button>
                 </div>
               </div>
               
@@ -250,6 +260,7 @@
                 <h3 class="font-semibold text-lg text-amber-900">2. Courier Delivery Label</h3>
                 <div class="flex space-x-2 w-full sm:w-auto">
                   <button onclick="downloadLabelPDF()" class="flex-1 sm:flex-none bg-amber-800 text-white px-3 py-1.5 rounded text-xs hover:bg-amber-900">Download Label PDF</button>
+                  <button onclick="shareLabelWhatsApp()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-700">Share Label via WA</button>
                 </div>
               </div>
 
@@ -384,6 +395,9 @@
 
     </main>
   </div>
+
+  <!-- Offscreen element for generating PDF without layout shifts -->
+  <div id="pdfRenderContainer"></div>
 
   <!-- JavaScript Section -->
   <script>
@@ -585,6 +599,31 @@
       });
     }
 
+    // WhatsApp Sharing Functions
+    function shareWhatsAppPDF() {
+      const invNo = document.getElementById('invNo').innerText;
+      const custName = document.getElementById('invCustomer').innerText;
+      const phone = document.getElementById('invPhone1').innerText;
+      const total = document.getElementById('invGrandTotal').innerText;
+      
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const message = `Hello ${custName},\n\nThank you for shopping with *The Saree Embassy*! ✨\n\nYour invoice (*${invNo}*) for LKR ${total} has been generated.\n\nPlease contact us if you need any further assistance.`;
+      
+      const url = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}` : `https://wa.me/?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
+    }
+
+    function shareLabelWhatsApp() {
+      const invNo = document.getElementById('lblInvNo').innerText;
+      const custName = document.getElementById('lblCustName').innerText;
+      const address = document.getElementById('lblAddress').innerText;
+      const codAmt = document.getElementById('lblCodAmt').innerText;
+
+      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\nCollect COD: LKR ${codAmt}\n\nPlease prepare for dispatch.`;
+      
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    }
+
     // Charts Setup
     window.addEventListener('DOMContentLoaded', () => {
       const salesCtx = document.getElementById('salesChart')?.getContext('2d');
@@ -636,7 +675,7 @@
       try {
         const res = await fetch(GOOGLE_SCRIPT_URL, {
           method: "GET",
-          redirect: "follow" // CRITICAL: Follows Google Apps Script redirects
+          redirect: "follow"
         });
 
         const textData = await res.text();
@@ -687,8 +726,8 @@
         await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
           mode: 'cors',
-          redirect: 'follow', // CRITICAL: Follows redirects on POST
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Prevents CORS preflight issues
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
         });
 
