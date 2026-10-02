@@ -47,7 +47,7 @@
       padding: 8px;
     }
 
-    /* Invoice Preview Responsive Container for Screen Viewing */
+    /* Invoice Preview Responsive Container */
     .invoice-preview-wrapper {
       width: 100%;
       overflow-x: auto;
@@ -376,14 +376,16 @@
                   <th class="p-3">Date</th>
                   <th class="p-3">Customer Name</th>
                   <th class="p-3">Phones & Address</th>
-                  <th class="p-3">Items & Qty</th>
-                  <th class="p-3">Total / COD</th>
+                  <th class="p-3">Saree Photo</th>
+                  <th class="p-3">Items</th>
+                  <th class="p-3">Breakdown (Sub/Disc/Del)</th>
+                  <th class="p-3">Grand Total & COD</th>
                   <th class="p-3">Payment Status</th>
                 </tr>
               </thead>
               <tbody id="customerTableBody" class="divide-y divide-amber-100">
                 <tr>
-                  <td colspan="7" class="p-6 text-center text-amber-700 font-medium">
+                  <td colspan="9" class="p-6 text-center text-amber-700 font-medium">
                     Click "Sync Now" or switch tab to load live data...
                   </td>
                 </tr>
@@ -401,7 +403,6 @@
 
   <!-- JavaScript Section -->
   <script>
-    // Tab Switching Function
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       const activeTab = document.getElementById('tab-' + tabId);
@@ -413,7 +414,6 @@
       }
     }
 
-    // Dynamic Saree Item Rows logic
     function addItemRow() {
       const container = document.getElementById('itemsContainer');
       const row = document.createElement('div');
@@ -518,6 +518,7 @@
       let subtotalOrig = 0;
       let totalGrand = 0;
       let itemsSummaryText = [];
+      let photoBase64 = "";
 
       rows.forEach(row => {
         const sareeName = row.querySelector('.saree-name').value;
@@ -525,6 +526,10 @@
         const discPrice = parseFloat(row.querySelector('.saree-disc-price').value) || 0;
         const qty = parseInt(row.querySelector('.saree-qty').value) || 1;
         const imgBox = row.querySelector('.saree-img-box');
+
+        if (imgBox && imgBox.src && !photoBase64) {
+          photoBase64 = imgBox.src; // Capture first photo
+        }
 
         const lineTotal = discPrice * qty;
         subtotalOrig += (origPrice * qty);
@@ -555,7 +560,7 @@
       document.getElementById('invDelivery').innerText = deliveryCost.toFixed(2);
       document.getElementById('invGrandTotal').innerText = finalGrandTotal.toFixed(2);
 
-      // Save to Google Sheets
+      // Save complete details to Google Sheets
       const sheetPayload = {
         invNo: invNum,
         date: today,
@@ -564,8 +569,12 @@
         phone2: phone2,
         address: address,
         itemsSummary: itemsSummaryText.join(", "),
-        grandTotal: finalGrandTotal,
+        photoBase64: photoBase64,
+        subtotal: subtotalOrig,
+        discount: totalDiscount,
         deliveryCost: deliveryCost,
+        grandTotal: finalGrandTotal,
+        codAmount: codAmount,
         paymentStatus: codAmount > 0 ? "COD Pending" : "Paid"
       };
 
@@ -670,7 +679,7 @@
       const custTbody = document.getElementById('customerTableBody');
       if (!custTbody) return;
 
-      custTbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-amber-800 font-medium">Loading live data from Google Sheets...</td></tr>`;
+      custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-amber-800 font-medium">Loading live data from Google Sheets...</td></tr>`;
 
       try {
         const res = await fetch(GOOGLE_SCRIPT_URL, {
@@ -688,7 +697,7 @@
         }
 
         if (!Array.isArray(data) || data.length === 0) {
-          custTbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-amber-700">No orders found in Google Sheet.</td></tr>`;
+          custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-amber-700">No orders found in Google Sheet.</td></tr>`;
           return;
         }
 
@@ -701,8 +710,19 @@
             <td class="p-3">${item.date || ''}</td>
             <td class="p-3 font-medium">${item.name || ''}</td>
             <td class="p-3 text-xs whitespace-pre-line">${item.phone1 || ''}${item.phone2 ? '\n' + item.phone2 : ''}\n${item.address || ''}</td>
+            <td class="p-3 text-xs">
+              ${item.photoUrl ? `<a href="${item.photoUrl}" target="_blank" class="text-xs text-amber-800 font-bold underline">View Photo</a>` : '<span class="text-gray-400">No Photo</span>'}
+            </td>
             <td class="p-3 text-xs">${item.itemsSummary || ''}</td>
-            <td class="p-3 font-bold text-emerald-800">LKR ${(item.grandTotal || 0).toLocaleString()}</td>
+            <td class="p-3 text-xs space-y-0.5">
+              <p>Subtotal: LKR ${(item.subtotal || 0).toLocaleString()}</p>
+              <p class="text-emerald-700">Disc: LKR ${(item.discount || 0).toLocaleString()}</p>
+              <p>Delivery: LKR ${(item.deliveryCost || 0).toLocaleString()}</p>
+            </td>
+            <td class="p-3 text-xs">
+              <p class="font-bold text-emerald-800 text-sm">LKR ${(item.grandTotal || 0).toLocaleString()}</p>
+              <p class="text-amber-900">COD: LKR ${(item.codAmount || 0).toLocaleString()}</p>
+            </td>
             <td class="p-3">
               <span class="px-2 py-1 rounded text-xs font-semibold ${item.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
                 ${item.paymentStatus || 'Pending'}
@@ -714,7 +734,7 @@
 
       } catch (err) {
         console.error("Fetch Error:", err);
-        custTbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-600 font-semibold">Failed to load Google Sheets data. Please check your network or permissions.</td></tr>`;
+        custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-red-600 font-semibold">Failed to load Google Sheets data. Please check your network or permissions.</td></tr>`;
       }
     }
 
@@ -731,7 +751,7 @@
           body: JSON.stringify(payload)
         });
 
-        console.log("Invoice successfully saved to Google Sheets");
+        console.log("Invoice and photo uploaded successfully to Google Drive & Sheets");
       } catch (err) {
         console.error("Error saving invoice to sheet:", err);
         alert("Failed to save order to Google Sheets. Check browser console for details.");
