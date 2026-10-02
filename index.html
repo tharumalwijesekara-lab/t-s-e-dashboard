@@ -177,7 +177,7 @@
                     <div class="w-7/12 space-y-2">
                       <p class="text-[11px] text-gray-500 font-bold uppercase">DELIVER TO:</p>
                       <h2 class="text-lg font-bold text-gray-900" id="lblCustName">CUSTOMER NAME</h2>
-                      <p class="text-xs text-gray-800 whitespace-pre-line" id="lblAddress">Delivery Address</p>
+                      <p class="text-xs text-gray-700 whitespace-pre-line" id="lblAddress">Delivery Address</p>
                       <div class="pt-2 flex flex-col gap-1 text-xs">
                         <p><strong>Primary Phone:</strong> <span id="lblPhone1">---</span></p>
                         <p><strong>Secondary Phone:</strong> <span id="lblPhone2">---</span></p>
@@ -249,7 +249,7 @@
         <div class="flex justify-between items-center bg-amber-100/60 p-4 rounded-xl border border-amber-200">
           <div>
             <h2 class="text-xl font-bold text-amber-950 font-serif">Customer Directory</h2>
-            <p class="text-xs text-amber-800">Live order database and document status</p>
+            <p class="text-xs text-amber-800">Live order database and quick actions</p>
           </div>
           <button onclick="renderCustomers()" class="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-sm font-semibold shadow">Sync Now</button>
         </div>
@@ -280,9 +280,6 @@
 
     </main>
   </div>
-
-  <!-- Off-Screen Render Target for Downloads -->
-  <div id="offscreenRender"></div>
 
   <script>
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi9XxpdFjsvRRPwHl0RGY6wiizgJuyRk6r7jM7UgPeXDZoVQ_JD7rTFDZizwQcyzSX/exec";
@@ -472,127 +469,47 @@
       });
     }
 
-    function downloadDirectoryInvoice(invNo) {
+    function shareWhatsAppPDF() {
+      const invNo = document.getElementById('invNo').innerText;
+      const custName = document.getElementById('invCustomer').innerText;
+      const phone = document.getElementById('invPhone1').innerText.replace(/[^0-9]/g, '');
+      const total = document.getElementById('invGrandTotal').innerText;
+      const message = `Hello ${custName},\n\nThank you for shopping with *The Saree Embassy*!\n\nYour invoice (*${invNo}*) for LKR ${total} has been generated.`;
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    }
+
+    function shareLabelWhatsApp() {
+      const invNo = document.getElementById('lblInvNo').innerText;
+      const custName = document.getElementById('lblCustName').innerText;
+      const address = document.getElementById('lblAddress').innerText;
+      const total = document.getElementById('lblSubtotal').innerText;
+      const del = document.getElementById('lblDelivery').innerText;
+      const grandTotal = document.getElementById('lblGrandTotal').innerText;
+      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\n\n*Cash Collection Breakdown:* \nTotal: LKR ${total}\nDelivery: LKR ${del}\n*Grand Total: LKR ${grandTotal}*`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    }
+
+    // Share Invoice via WhatsApp from Directory
+    function shareDirectoryInvoiceWA(invNo) {
       const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
       if (!item) return;
 
-      let rawItems = [];
-      try { rawItems = JSON.parse(item.rawItemsJson); } catch(e){}
-
-      let itemsRowsHtml = '';
-      if (rawItems.length > 0) {
-        rawItems.forEach(it => {
-          itemsRowsHtml += `
-            <tr class="border-b">
-              <td class="p-3"><p class="font-semibold text-gray-800">${it.name}</p>${it.imgSrc ? `<img src="${it.imgSrc}" class="saree-img-box">` : ''}</td>
-              <td class="p-3 text-gray-500 line-through">LKR ${(it.origPrice || 0).toFixed(2)}</td>
-              <td class="p-3 font-semibold text-amber-900">LKR ${(it.discPrice || 0).toFixed(2)}</td>
-              <td class="p-3 text-center">${it.qty}</td>
-              <td class="p-3 text-right font-bold text-gray-800">LKR ${((it.discPrice || 0) * it.qty).toFixed(2)}</td>
-            </tr>
-          `;
-        });
-      } else {
-        itemsRowsHtml = `<tr class="border-b"><td colspan="5" class="p-3 font-semibold">${item.itemsSummary}</td></tr>`;
-      }
-
-      const tempDiv = document.createElement('div');
-      tempDiv.id = "tempInvContainer";
-      tempDiv.className = "pdf-render-canvas border p-8 rounded bg-white text-gray-800 space-y-6 shadow-md";
-      tempDiv.innerHTML = `
-        <div class="border-b pb-4 flex justify-between items-start">
-          <div>
-            <h4 class="text-xl font-bold font-serif text-amber-900">THE SAREE EMBASSY</h4>
-            <p class="text-xs text-gray-600">NO. 420/5A/01, Kadawatha Road, Ganemulla | WhatsApp: 0702394119</p>
-          </div>
-          <div class="text-right">
-            <p class="text-sm font-bold text-amber-950">Invoice #: ${item.invNo}</p>
-            <p class="text-xs text-gray-600">Date: ${item.date}</p>
-          </div>
-        </div>
-        <table class="w-full bg-[#fffbeb] p-4 rounded text-xs border border-amber-100">
-          <tr>
-            <td class="w-1/2 align-top p-2"><p><strong>Customer:</strong> ${item.name}</p><p><strong>Phone:</strong> ${item.phone1}</p></td>
-            <td class="w-1/2 align-top p-2"><p><strong>Address:</strong> ${item.address}</p></td>
-          </tr>
-        </table>
-        <table class="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr class="border-b bg-[#fef3c7] text-amber-900">
-              <th class="p-3 w-2/5">Item Details</th><th class="p-3">Original</th><th class="p-3">Discounted</th><th class="p-3 text-center">Qty</th><th class="p-3 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>${itemsRowsHtml}</tbody>
-        </table>
-        <div class="flex justify-end pt-2">
-          <table class="w-1/2 text-right text-xs">
-            <tr><td class="py-1">Subtotal:</td><td class="py-1 pl-4">LKR ${(item.subtotal || 0).toFixed(2)}</td></tr>
-            <tr><td class="py-1">Discount:</td><td class="py-1 pl-4">LKR ${(item.discount || 0).toFixed(2)}</td></tr>
-            <tr><td class="py-1">Delivery:</td><td class="py-1 pl-4">LKR ${(item.deliveryCost || 0).toFixed(2)}</td></tr>
-            <tr class="font-bold border-t"><td class="pt-2">Grand Total:</td><td class="pt-2 pl-4">LKR ${(item.grandTotal || 0).toFixed(2)}</td></tr>
-          </table>
-        </div>
-      `;
-
-      const offscreen = document.getElementById('offscreenRender');
-      offscreen.innerHTML = '';
-      offscreen.appendChild(tempDiv);
-
-      downloadElementPDF('tempInvContainer', item.invNo, 'a4', 'p');
+      const phone = String(item.phone1 || '').replace(/[^0-9]/g, '');
+      const message = `Hello ${item.name},\n\nThank you for shopping with *The Saree Embassy*!\n\nInvoice Ref: *${item.invNo}*\nItems: ${item.itemsSummary}\nTotal Amount: *LKR ${(item.grandTotal || 0).toLocaleString()}*`;
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
     }
 
-    function downloadDirectoryLabel(invNo) {
+    // Share Delivery Label Details via WhatsApp from Directory
+    function shareDirectoryLabelWA(invNo) {
       const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
       if (!item) return;
 
       const itemsTotal = (item.grandTotal || 0) - (item.deliveryCost || 0);
+      const delivery = item.deliveryCost || 0;
+      const grandTotal = item.grandTotal || 0;
 
-      const tempDiv = document.createElement('div');
-      tempDiv.id = "tempLabelContainer";
-      tempDiv.className = "delivery-label-canvas border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4 shadow-md";
-      tempDiv.innerHTML = `
-        <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-center">
-          <div>
-            <h3 class="text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
-            <p class="text-xs text-gray-600">NO. 420/5A/01, Kadawatha Road, Ganemulla | WhatsApp: 0702394119</p>
-          </div>
-          <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase">COD</span>
-        </div>
-        <div class="flex flex-row gap-4">
-          <div class="w-7/12 space-y-2">
-            <p class="text-[11px] text-gray-500 font-bold uppercase">DELIVER TO:</p>
-            <h2 class="text-lg font-bold text-gray-900">${item.name}</h2>
-            <p class="text-xs text-gray-700 whitespace-pre-line">${item.address}</p>
-            <div class="pt-2 flex flex-col gap-1 text-xs">
-              <p><strong>Primary Phone:</strong> ${item.phone1}</p>
-              <p><strong>Secondary Phone:</strong> ${item.phone2 || 'N/A'}</p>
-              <p><strong>Order Ref:</strong> ${item.invNo}</p>
-            </div>
-          </div>
-          <div class="w-5/12 flex items-center justify-center">
-            <div class="cod-sticker-area">
-              <p class="text-xs text-amber-900 font-bold">PLACE COD STICKER HERE<br><span class="text-[10px] text-amber-700 font-normal">(1.5" × 3" Box)</span></p>
-            </div>
-          </div>
-        </div>
-        <div class="border-t-2 border-dashed border-gray-300 pt-3 flex justify-between items-center text-xs">
-          <p class="text-gray-500 text-[11px]">Please verify details before handover to courier.</p>
-          <div class="text-right bg-[#fffbeb] p-3 rounded border border-amber-300 min-w-[210px]">
-            <p class="text-amber-950 font-bold text-[11px] border-b border-amber-200 pb-1 mb-1 uppercase tracking-wide">Collect Cash Breakdown</p>
-            <table class="w-full text-xs text-right">
-              <tr><td class="text-gray-600 font-medium">Total:</td><td class="pl-2 font-semibold">LKR ${itemsTotal.toFixed(2)}</td></tr>
-              <tr><td class="text-gray-600 font-medium">Delivery:</td><td class="pl-2 font-semibold">LKR ${(item.deliveryCost || 0).toFixed(2)}</td></tr>
-              <tr class="border-t border-amber-300 text-amber-950 font-extrabold text-sm"><td class="pt-1">Grand Total:</td><td class="pt-1 pl-2 text-amber-900">LKR ${(item.grandTotal || 0).toFixed(2)}</td></tr>
-            </table>
-          </div>
-        </div>
-      `;
-
-      const offscreen = document.getElementById('offscreenRender');
-      offscreen.innerHTML = '';
-      offscreen.appendChild(tempDiv);
-
-      downloadElementPDF('tempLabelContainer', `LABEL-${item.invNo}`, 'a5', 'l');
+      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${item.invNo}\nCustomer: ${item.name}\nPhone: ${item.phone1}${item.phone2 ? ' / ' + item.phone2 : ''}\nAddress: ${item.address}\n\n*Collect Cash Breakdown:*\nTotal: LKR ${itemsTotal.toLocaleString()}\nDelivery: LKR ${delivery.toLocaleString()}\n*Grand Total: LKR ${grandTotal.toLocaleString()}*`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
 
     function editOrder(invNo) {
@@ -645,26 +562,6 @@
       }
     }
 
-    function shareWhatsAppPDF() {
-      const invNo = document.getElementById('invNo').innerText;
-      const custName = document.getElementById('invCustomer').innerText;
-      const phone = document.getElementById('invPhone1').innerText.replace(/[^0-9]/g, '');
-      const total = document.getElementById('invGrandTotal').innerText;
-      const message = `Hello ${custName},\n\nThank you for shopping with *The Saree Embassy*!\n\nYour invoice (*${invNo}*) for LKR ${total} has been generated.`;
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
-    }
-
-    function shareLabelWhatsApp() {
-      const invNo = document.getElementById('lblInvNo').innerText;
-      const custName = document.getElementById('lblCustName').innerText;
-      const address = document.getElementById('lblAddress').innerText;
-      const total = document.getElementById('lblSubtotal').innerText;
-      const del = document.getElementById('lblDelivery').innerText;
-      const grandTotal = document.getElementById('lblGrandTotal').innerText;
-      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\n\n*Cash Collection:* \nTotal: LKR ${total}\nDelivery: LKR ${del}\n*Grand Total: LKR ${grandTotal}*`;
-      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-    }
-
     async function renderCustomers() {
       const custTbody = document.getElementById('customerTableBody');
       if (!custTbody) return;
@@ -708,8 +605,8 @@
             <td class="p-3 text-center">
               <div class="flex flex-col gap-1">
                 <button onclick="editOrder('${item.invNo}')" class="bg-amber-800 hover:bg-amber-900 text-white text-[11px] px-2 py-1 rounded">Edit</button>
-                <button onclick="downloadDirectoryInvoice('${item.invNo}')" class="bg-amber-700 hover:bg-amber-800 text-white text-[10px] px-2 py-0.5 rounded">Invoice PDF</button>
-                <button onclick="downloadDirectoryLabel('${item.invNo}')" class="bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] px-2 py-0.5 rounded">Label PDF</button>
+                <button onclick="shareDirectoryInvoiceWA('${item.invNo}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] px-2 py-0.5 rounded flex items-center justify-center gap-1">WA Invoice</button>
+                <button onclick="shareDirectoryLabelWA('${item.invNo}')" class="bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] px-2 py-0.5 rounded flex items-center justify-center gap-1">WA Label</button>
                 <button onclick="deleteOrder('${item.invNo}')" class="bg-red-600 hover:bg-red-700 text-white text-[10px] px-2 py-0.5 rounded">Delete</button>
               </div>
             </td>
@@ -757,7 +654,7 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      // Restore saved brand logo from localStorage on page refresh
+      // Restore saved logo from localStorage
       const savedLogo = localStorage.getItem('sareeEmbassyLogo');
       if (savedLogo) {
         document.getElementById('brandLogo').src = savedLogo;
