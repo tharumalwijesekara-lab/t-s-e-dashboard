@@ -27,17 +27,13 @@
       margin-top: 6px;
     }
     .pdf-render-canvas {
-      width: 800px !important;
-      max-width: none !important;
+      width: 800px;
       background-color: #ffffff !important;
     }
-    /* Responsive Delivery Label canvas */
     .delivery-label-canvas {
-      width: 100%;
-      max-width: 650px;
+      width: 650px;
       background-color: #ffffff !important;
     }
-    /* Proportional COD Sticker Box */
     .cod-sticker-area {
       width: 100%;
       min-height: 110px;
@@ -51,16 +47,24 @@
       padding: 8px;
     }
 
-    /* Invoice Preview Responsive Container for Mobile */
+    /* Invoice Preview Responsive Container for Screen Viewing */
     .invoice-preview-wrapper {
       width: 100%;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       display: flex;
-      justify-content: center;
+      justify-content: flex-start;
     }
 
-    /* Print / Export overrides */
+    /* Offscreen hidden container for background PDF generation */
+    #pdfRenderContainer {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      width: 800px;
+      background: white;
+    }
+
     @media print {
       body * {
         visibility: hidden;
@@ -259,8 +263,8 @@
                 </div>
               </div>
 
-              <div class="flex justify-center bg-amber-50/20 p-2 sm:p-4 rounded-xl border overflow-x-auto">
-                <div id="deliveryLabelCard" class="delivery-label-canvas border-2 border-amber-900 p-4 sm:p-6 rounded bg-white text-gray-800 space-y-4 shadow-md">
+              <div class="flex justify-start bg-amber-50/20 p-2 sm:p-4 rounded-xl border overflow-x-auto">
+                <div id="deliveryLabelCard" class="delivery-label-canvas border-2 border-amber-900 p-4 sm:p-6 rounded bg-white text-gray-800 space-y-4 shadow-md shrink-0">
                   
                   <!-- Header -->
                   <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-start sm:items-center gap-2">
@@ -275,9 +279,9 @@
                   </div>
 
                   <!-- Delivery & COD Sticker Grid -->
-                  <div class="flex flex-col sm:flex-row gap-4">
+                  <div class="flex flex-row gap-4">
                     <!-- Delivery Recipient Info -->
-                    <div class="w-full sm:w-7/12 space-y-2">
+                    <div class="w-7/12 space-y-2">
                       <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wider">DELIVER TO:</p>
                       <h2 class="text-base sm:text-lg font-bold text-gray-900 leading-snug" id="lblCustName">CUSTOMER NAME</h2>
                       <p class="text-xs text-gray-700 whitespace-pre-line leading-relaxed" id="lblAddress">Delivery Address Line 1, Line 2, City</p>
@@ -289,7 +293,7 @@
                     </div>
 
                     <!-- COD Sticker Area Box -->
-                    <div class="w-full sm:w-5/12 flex items-center justify-center">
+                    <div class="w-5/12 flex items-center justify-center">
                       <div class="cod-sticker-area">
                         <p class="text-xs text-amber-900 font-bold leading-tight">
                           PLACE COD STICKER HERE<br>
@@ -300,11 +304,11 @@
                   </div>
 
                   <!-- Footer -->
-                  <div class="border-t-2 border-dashed border-gray-300 pt-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
+                  <div class="border-t-2 border-dashed border-gray-300 pt-3 flex flex-row justify-between items-center gap-3 text-xs">
                     <div>
                       <p class="text-gray-500">Please verify details before handover to courier.</p>
                     </div>
-                    <div class="w-full sm:w-auto text-left sm:text-right bg-amber-50 px-4 py-2 rounded border border-amber-200">
+                    <div class="text-right bg-amber-50 px-4 py-2 rounded border border-amber-200">
                       <p class="text-gray-600 font-bold text-[11px]">COLLECT CASH (COD):</p>
                       <p class="text-lg font-extrabold text-amber-950">LKR <span id="lblCodAmt">0.00</span></p>
                     </div>
@@ -356,15 +360,16 @@
           <button onclick="renderCustomers()" class="text-xs bg-amber-100 text-amber-900 font-bold px-3 py-2 rounded hover:bg-amber-200">↻ Sync Now</button>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-amber-100 overflow-x-auto">
-          <table class="w-full text-left text-sm min-w-[800px]">
+          <table class="w-full text-left text-sm min-w-[900px]">
             <thead class="bg-amber-100/50 text-amber-900 border-b">
               <tr>
                 <th class="p-3">Customer & Order</th>
                 <th class="p-3">Phones & Address</th>
+                <th class="p-3">Items & Qty</th>
                 <th class="p-3">Total / COD</th>
                 <th class="p-3">Payment Status</th>
                 <th class="p-3">Fulfillment</th>
-                <th class="p-3 text-center">Download PDFs</th>
+                <th class="p-3 text-center">Direct Download</th>
               </tr>
             </thead>
             <tbody id="customerTableBody">
@@ -375,6 +380,9 @@
 
     </main>
   </div>
+
+  <!-- Hidden PDF Render Container -->
+  <div id="pdfRenderContainer"></div>
 
   <script>
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby5DVc8m2vAxU8aSWJXdq2Prc3JBFkPHLzvFBoPYE0EvgfcMKGzOIW0RMOzy9k3BsZ1/exec';
@@ -496,6 +504,7 @@
 
       let grandSubtotal = 0;
       let grandTotal = 0;
+      let itemsSummaryArr = [];
 
       rows.forEach((row, index) => {
         const item = row.querySelector('.saree-name').value;
@@ -506,6 +515,8 @@
         const lineTotal = discPrice * qty;
         grandSubtotal += (origPrice * qty);
         grandTotal += lineTotal;
+
+        itemsSummaryArr.push(`${item} (x${qty})`);
 
         const imgSrc = itemImageData[index];
         const photoHtml = imgSrc ? `<br><img src="${imgSrc}" class="saree-img-box" alt="Saree Photo">` : '';
@@ -529,7 +540,6 @@
       document.getElementById('invDelivery').innerText = deliveryCost.toLocaleString();
       document.getElementById('invGrandTotal').innerText = finalGrandTotal.toLocaleString();
 
-      // Sync data to Delivery Label Preview
       updateLabelPreview(name, phone1, phone2, address, invNo, codAmount || finalGrandTotal);
 
       const payload = {
@@ -540,6 +550,7 @@
         phone1: phone1,
         phone2: phone2,
         address: address,
+        itemsSummary: itemsSummaryArr.join(', '),
         grandTotal: finalGrandTotal,
         codTracking: '',
         paymentStatus: 'Pending',
@@ -573,9 +584,32 @@
       document.getElementById('lblCodAmt').innerText = amt.toLocaleString();
     }
 
-    async function generateLabelPdfBlob() {
+    /* Fixed A4 & Label PDF Generation Logic */
+    async function generatePdfBlobFromElement(element) {
       const { jsPDF } = window.jspdf;
-      const element = document.getElementById('deliveryLabelCard');
+      
+      // Render offscreen canvas with fixed standard width
+      const canvas = await html2canvas(element, { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false,
+        windowWidth: 800
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const calculatedHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      // Align & fit within A4 margins
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, Math.min(calculatedHeight, pdfHeight));
+      return { pdf, blob: pdf.output('blob') };
+    }
+
+    async function generateLabelPdfBlobFromElement(element) {
+      const { jsPDF } = window.jspdf;
       
       const canvas = await html2canvas(element, { 
         scale: 2, 
@@ -593,10 +627,58 @@
       return { pdf, blob: pdf.output('blob') };
     }
 
+    async function downloadPDF() {
+      const invNo = document.getElementById('invNo').innerText || 'Invoice';
+      const element = document.getElementById('invoiceCard');
+      const { pdf } = await generatePdfBlobFromElement(element);
+      pdf.save(`Saree_Embassy_Invoice_${invNo}.pdf`);
+    }
+
     async function downloadLabelPDF() {
       const invNo = document.getElementById('lblInvNo').innerText || 'Label';
-      const { pdf } = await generateLabelPdfBlob();
+      const element = document.getElementById('deliveryLabelCard');
+      const { pdf } = await generateLabelPdfBlobFromElement(element);
       pdf.save(`Delivery_Label_${invNo}.pdf`);
+    }
+
+    async function shareWhatsAppPDF() {
+      const name = document.getElementById('invCustomer') ? document.getElementById('invCustomer').innerText : '';
+      let phone = document.getElementById('custPhone1').value.replace(/[^0-9]/g, '');
+      const invNo = document.getElementById('invNo').innerText;
+      const grandTotal = document.getElementById('invGrandTotal').innerText;
+
+      if (!phone) {
+        alert("Please enter a valid phone number first.");
+        return;
+      }
+
+      if (phone.startsWith('0')) {
+        phone = '94' + phone.substring(1);
+      }
+
+      try {
+        const element = document.getElementById('invoiceCard');
+        const { blob } = await generatePdfBlobFromElement(element);
+        const file = new File([blob], `${invNo}_Saree_Embassy.pdf`, { type: 'application/pdf' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: `Invoice ${invNo}`,
+            text: `Hello ${name}, here is your invoice from The Saree Embassy!`
+          });
+        } else {
+          const message = `*THE SAREE EMBASSY*%0A` +
+                          `Hello ${name}, thank you for your order!%0A%0A` +
+                          `*Invoice No:* ${invNo}%0A` +
+                          `*Total Amount:* LKR ${grandTotal}%0A%0A` +
+                          `Address: NO. 420/5A/01, Kadawatha Road, Ganemulla%0A` +
+                          `WhatsApp: 0702394119`;
+          window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+        }
+      } catch (err) {
+        console.error('Sharing failed:', err);
+      }
     }
 
     async function shareLabelWhatsApp() {
@@ -614,7 +696,8 @@
       }
 
       try {
-        const { blob } = await generateLabelPdfBlob();
+        const element = document.getElementById('deliveryLabelCard');
+        const { blob } = await generateLabelPdfBlobFromElement(element);
         const file = new File([blob], `Delivery_Label_${invNo}.pdf`, { type: 'application/pdf' });
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -628,8 +711,7 @@
                           `Recipient: ${name}%0A` +
                           `Order No: ${invNo}%0A` +
                           `Phone: ${phone}`;
-          const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
-          window.open(whatsappUrl, '_blank');
+          window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
         }
       } catch (err) {
         console.error('Sharing label failed:', err);
@@ -638,7 +720,7 @@
 
     async function renderCustomers() {
       const custTbody = document.getElementById('customerTableBody');
-      custTbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400">Loading live data from Google Sheets...</td></tr>`;
+      custTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">Loading live data from Google Sheets...</td></tr>`;
 
       try {
         const res = await fetch(GOOGLE_SCRIPT_URL);
@@ -646,7 +728,7 @@
         const data = JSON.parse(textData);
         
         if (!data || data.length === 0) {
-          custTbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400">No orders found in Google Sheet.</td></tr>`;
+          custTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">No orders found in Google Sheet.</td></tr>`;
           return;
         }
 
@@ -659,6 +741,9 @@
             <td class="p-3">
               <span class="text-xs font-semibold">${cust.phone1}</span><br>
               <span class="text-gray-500 text-xs">${cust.address}</span>
+            </td>
+            <td class="p-3 text-xs text-gray-700 max-w-[180px]">
+              ${cust.itemsSummary || 'N/A'}
             </td>
             <td class="p-3 text-xs font-bold text-amber-950">
               LKR ${parseFloat(cust.grandTotal || 0).toLocaleString()}
@@ -681,11 +766,11 @@
             </td>
             <td class="p-3 text-center">
               <div class="flex items-center justify-center space-x-1">
-                <button onclick="downloadCustomerInvoice('${cust.name}', '${cust.phone1}', '${cust.phone2}', '${cust.address}', '${cust.invNo}', '${cust.grandTotal}')"
+                <button onclick="directDownloadCustomerInvoice('${cust.name}', '${cust.phone1}', '${cust.phone2 || ''}', '${cust.address.replace(/'/g, "\\'")}', '${cust.invNo}', '${cust.grandTotal}', '${(cust.itemsSummary || '').replace(/'/g, "\\'")}')"
                         class="text-[11px] bg-amber-800 text-white px-2 py-1 rounded hover:bg-amber-900">
                   Invoice PDF
                 </button>
-                <button onclick="downloadCustomerLabel('${cust.name}', '${cust.phone1}', '${cust.phone2}', '${cust.address}', '${cust.invNo}', '${cust.grandTotal}')"
+                <button onclick="directDownloadCustomerLabel('${cust.name}', '${cust.phone1}', '${cust.phone2 || ''}', '${cust.address.replace(/'/g, "\\'")}', '${cust.invNo}', '${cust.grandTotal}')"
                         class="text-[11px] bg-amber-900 text-white px-2 py-1 rounded hover:bg-amber-950">
                   Label PDF
                 </button>
@@ -695,7 +780,7 @@
         `).reverse().join('');
       } catch (err) {
         console.error('Fetch error:', err);
-        custTbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500">Failed to load Google Sheets data. Please confirm script deployment.</td></tr>`;
+        custTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">Failed to load Google Sheets data. Please confirm script deployment.</td></tr>`;
       }
     }
 
@@ -719,89 +804,131 @@
       }
     }
 
-    // Direct download helpers for Customer Directory
-    async function downloadCustomerInvoice(name, phone1, phone2, address, invNo, grandTotal) {
-      document.getElementById('invCustomer').innerText = name;
-      document.getElementById('invPhone1').innerText = phone1;
-      document.getElementById('invPhone2').innerText = phone2 || 'N/A';
-      document.getElementById('invAddress').innerText = address;
-      document.getElementById('invNo').innerText = invNo;
-      document.getElementById('invGrandTotal').innerText = parseFloat(grandTotal || 0).toLocaleString();
-      
-      const { pdf } = await generatePdfBlob();
+    /* DIRECT PDF DOWNLOADS FROM CUSTOMER DIRECTORY (WITHOUT OVERWRITING PREVIEW PAGE OR RE-ADDING ORDERS) */
+    async function directDownloadCustomerInvoice(name, phone1, phone2, address, invNo, grandTotal, itemsSummary) {
+      const renderContainer = document.getElementById('pdfRenderContainer');
+      const logoSrc = localStorage.getItem('tse_brand_logo') || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>";
+
+      renderContainer.innerHTML = `
+        <div id="tempPdfCard" class="pdf-render-canvas border p-8 rounded bg-white text-gray-800 space-y-6">
+          <div class="border-b pb-4 flex justify-between items-start gap-4">
+            <div class="flex items-start space-x-3 w-2/3">
+              <img src="${logoSrc}" class="brand-logo-box border border-amber-200 rounded p-1 bg-amber-50/50">
+              <div>
+                <h4 class="text-xl font-bold font-serif text-amber-900 tracking-wide leading-tight">THE SAREE EMBASSY</h4>
+                <p class="text-xs font-semibold text-amber-800 mt-0.5">Luxury Sarees</p>
+                <p class="text-xs text-gray-600 mt-1 leading-tight">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
+                <p class="text-xs text-gray-600 mt-0.5">WhatsApp: <strong>0702394119</strong></p>
+              </div>
+            </div>
+            <div class="text-right w-1/3 shrink-0">
+              <p class="text-sm font-bold text-amber-950">Invoice #: <span>${invNo}</span></p>
+              <p class="text-xs text-gray-600 mt-1">Date: <span>${new Date().toLocaleDateString()}</span></p>
+            </div>
+          </div>
+
+          <table class="w-full bg-amber-50/40 p-4 rounded text-xs">
+            <tr>
+              <td class="w-1/2 align-top p-2">
+                <p><strong>Customer:</strong> ${name}</p>
+                <p class="mt-1"><strong>Phone 1:</strong> ${phone1}</p>
+                <p class="mt-1"><strong>Phone 2:</strong> ${phone2 || 'N/A'}</p>
+              </td>
+              <td class="w-1/2 align-top p-2">
+                <p><strong>Delivery Address:</strong></p>
+                <p class="text-gray-600 mt-1">${address}</p>
+              </td>
+            </tr>
+          </table>
+
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b bg-amber-50 text-amber-900">
+                <th class="p-3 w-3/5">Item Details</th>
+                <th class="p-3 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b">
+                <td class="p-3">${itemsSummary || 'Saree Order'}</td>
+                <td class="p-3 text-right font-medium">LKR ${parseFloat(grandTotal || 0).toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="flex justify-end pt-2">
+            <table class="w-1/2 text-right text-xs space-y-1">
+              <tr class="text-sm font-bold text-amber-950 border-t">
+                <td class="pt-2">Grand Total:</td>
+                <td class="pt-2 pl-4">LKR ${parseFloat(grandTotal || 0).toLocaleString()}</td>
+              </tr>
+            </table>
+          </div>
+
+          <p class="text-center text-xs text-gray-400 mt-6 pt-4 border-t">Thank you for shopping with The Saree Embassy!</p>
+        </div>
+      `;
+
+      const element = document.getElementById('tempPdfCard');
+      const { pdf } = await generatePdfBlobFromElement(element);
       pdf.save(`Invoice_${invNo}.pdf`);
+      renderContainer.innerHTML = '';
     }
 
-    async function downloadCustomerLabel(name, phone1, phone2, address, invNo, grandTotal) {
-      updateLabelPreview(name, phone1, phone2, address, invNo, parseFloat(grandTotal || 0));
-      const { pdf } = await generateLabelPdfBlob();
+    async function directDownloadCustomerLabel(name, phone1, phone2, address, invNo, grandTotal) {
+      const renderContainer = document.getElementById('pdfRenderContainer');
+
+      renderContainer.innerHTML = `
+        <div id="tempLabelCard" class="delivery-label-canvas border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4">
+          <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-center gap-2">
+            <div>
+              <h3 class="text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
+              <p class="text-xs text-gray-600 leading-tight">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
+              <p class="text-xs text-gray-600">WhatsApp: 0702394119</p>
+            </div>
+            <div>
+              <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase">COD</span>
+            </div>
+          </div>
+
+          <div class="flex flex-row gap-4">
+            <div class="w-7/12 space-y-2">
+              <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wider">DELIVER TO:</p>
+              <h2 class="text-lg font-bold text-gray-900 leading-snug">${name}</h2>
+              <p class="text-xs text-gray-700 whitespace-pre-line leading-relaxed">${address}</p>
+              <div class="pt-2 flex flex-col gap-1 text-xs">
+                <p><strong>Primary Phone:</strong> ${phone1}</p>
+                <p><strong>Secondary Phone:</strong> ${phone2 || 'N/A'}</p>
+                <p class="mt-1"><strong>Order Ref:</strong> ${invNo}</p>
+              </div>
+            </div>
+
+            <div class="w-5/12 flex items-center justify-center">
+              <div class="cod-sticker-area">
+                <p class="text-xs text-amber-900 font-bold leading-tight">
+                  PLACE COD STICKER HERE<br>
+                  <span class="text-[10px] text-amber-700 font-normal">(1.5" × 3" Box)</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t-2 border-dashed border-gray-300 pt-3 flex flex-row justify-between items-center gap-3 text-xs">
+            <div>
+              <p class="text-gray-500">Please verify details before handover to courier.</p>
+            </div>
+            <div class="text-right bg-amber-50 px-4 py-2 rounded border border-amber-200">
+              <p class="text-gray-600 font-bold text-[11px]">COLLECT CASH (COD):</p>
+              <p class="text-lg font-extrabold text-amber-950">LKR ${parseFloat(grandTotal || 0).toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const element = document.getElementById('tempLabelCard');
+      const { pdf } = await generateLabelPdfBlobFromElement(element);
       pdf.save(`Delivery_Label_${invNo}.pdf`);
-    }
-
-    async function generatePdfBlob() {
-      const { jsPDF } = window.jspdf;
-      const element = document.getElementById('invoiceCard');
-      
-      const canvas = await html2canvas(element, { 
-        scale: 2, 
-        useCORS: true, 
-        logging: false,
-        windowWidth: 800
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 5, pdfWidth, pdfHeight);
-      return { pdf, blob: pdf.output('blob') };
-    }
-
-    async function shareWhatsAppPDF() {
-      const name = document.getElementById('invCustomer') ? document.getElementById('invCustomer').innerText : '';
-      let phone = document.getElementById('custPhone1').value.replace(/[^0-9]/g, '');
-      const invNo = document.getElementById('invNo').innerText;
-      const grandTotal = document.getElementById('invGrandTotal').innerText;
-
-      if (!phone) {
-        alert("Please enter a valid phone number first.");
-        return;
-      }
-
-      if (phone.startsWith('0')) {
-        phone = '94' + phone.substring(1);
-      }
-
-      try {
-        const { blob } = await generatePdfBlob();
-        const file = new File([blob], `${invNo}_Saree_Embassy.pdf`, { type: 'application/pdf' });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `Invoice ${invNo}`,
-            text: `Hello ${name}, here is your invoice from The Saree Embassy!`
-          });
-        } else {
-          const message = `*THE SAREE EMBASSY*%0A` +
-                          `Hello ${name}, thank you for your order!%0A%0A` +
-                          `*Invoice No:* ${invNo}%0A` +
-                          `*Total Amount:* LKR ${grandTotal}%0A%0A` +
-                          `Address: NO. 420/5A/01, Kadawatha Road, Ganemulla%0A` +
-                          `WhatsApp: 0702394119`;
-          const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
-          window.open(whatsappUrl, '_blank');
-        }
-      } catch (err) {
-        console.error('Sharing failed:', err);
-      }
-    }
-
-    async function downloadPDF() {
-      const invNo = document.getElementById('invNo').innerText || 'Invoice';
-      const { pdf } = await generatePdfBlob();
-      pdf.save(`Saree_Embassy_Invoice_${invNo}.pdf`);
+      renderContainer.innerHTML = '';
     }
 
     window.onload = function() {
