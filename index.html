@@ -50,6 +50,34 @@
       background-color: #fffbeb;
       padding: 8px;
     }
+
+    /* Invoice Preview Responsive Container for Mobile */
+    .invoice-preview-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* Print / Export overrides */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #invoiceCard, #invoiceCard * {
+        visibility: visible;
+      }
+      #invoiceCard {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100% !important;
+        max-width: 800px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+    }
   </style>
 </head>
 <body class="bg-amber-50/30 text-gray-800 font-sans antialiased">
@@ -131,7 +159,7 @@
           <div class="lg:col-span-8 space-y-8">
             
             <!-- Invoice Section -->
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 overflow-x-auto">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100">
               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                 <h3 class="font-semibold text-lg text-amber-900">1. Invoice Preview</h3>
                 <div class="flex space-x-2 w-full sm:w-auto">
@@ -140,82 +168,84 @@
                 </div>
               </div>
               
-              <div id="invoiceCard" class="pdf-render-canvas border p-8 rounded bg-white text-gray-800 space-y-6">
-                <!-- Header Section -->
-                <div class="border-b pb-4 flex justify-between items-start gap-4">
-                  <div class="flex items-start space-x-3 w-2/3">
-                    <label for="logoUpload" class="cursor-pointer shrink-0">
-                      <img id="brandLogo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>" title="Click to upload logo" alt="Logo" class="brand-logo-box border border-amber-200 rounded p-1 bg-amber-50/50">
-                    </label>
-                    <input type="file" id="logoUpload" accept="image/*" class="hidden" onchange="loadLogo(this)">
-                    <div>
-                      <h4 class="text-xl font-bold font-serif text-amber-900 tracking-wide leading-tight">THE SAREE EMBASSY</h4>
-                      <p class="text-xs font-semibold text-amber-800 mt-0.5">Luxury Sarees</p>
-                      <p class="text-xs text-gray-600 mt-1 leading-tight">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
-                      <p class="text-xs text-gray-600 mt-0.5">WhatsApp: <strong>0702394119</strong></p>
+              <div class="invoice-preview-wrapper bg-amber-50/20 p-2 sm:p-4 rounded-xl border">
+                <div id="invoiceCard" class="pdf-render-canvas border p-6 sm:p-8 rounded bg-white text-gray-800 space-y-6 shadow-md">
+                  <!-- Header Section -->
+                  <div class="border-b pb-4 flex justify-between items-start gap-4">
+                    <div class="flex items-start space-x-3 w-2/3">
+                      <label for="logoUpload" class="cursor-pointer shrink-0">
+                        <img id="brandLogo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>" title="Click to upload logo" alt="Logo" class="brand-logo-box border border-amber-200 rounded p-1 bg-amber-50/50">
+                      </label>
+                      <input type="file" id="logoUpload" accept="image/*" class="hidden" onchange="loadLogo(this)">
+                      <div>
+                        <h4 class="text-xl font-bold font-serif text-amber-900 tracking-wide leading-tight">THE SAREE EMBASSY</h4>
+                        <p class="text-xs font-semibold text-amber-800 mt-0.5">Luxury Sarees</p>
+                        <p class="text-xs text-gray-600 mt-1 leading-tight">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
+                        <p class="text-xs text-gray-600 mt-0.5">WhatsApp: <strong>0702394119</strong></p>
+                      </div>
+                    </div>
+                    <div class="text-right w-1/3 shrink-0">
+                      <p class="text-sm font-bold text-amber-950">Invoice #: <span id="invNo">INV-001</span></p>
+                      <p class="text-xs text-gray-600 mt-1">Date: <span id="invDate">---</span></p>
                     </div>
                   </div>
-                  <div class="text-right w-1/3 shrink-0">
-                    <p class="text-sm font-bold text-amber-950">Invoice #: <span id="invNo">INV-001</span></p>
-                    <p class="text-xs text-gray-600 mt-1">Date: <span id="invDate">---</span></p>
-                  </div>
-                </div>
 
-                <!-- Customer Details Block -->
-                <table class="w-full bg-amber-50/40 p-4 rounded text-xs">
-                  <tr>
-                    <td class="w-1/2 align-top p-2">
-                      <p><strong>Customer:</strong> <span id="invCustomer">---</span></p>
-                      <p class="mt-1"><strong>Phone 1:</strong> <span id="invPhone1">---</span></p>
-                      <p class="mt-1"><strong>Phone 2:</strong> <span id="invPhone2">---</span></p>
-                    </td>
-                    <td class="w-1/2 align-top p-2">
-                      <p><strong>Delivery Address:</strong></p>
-                      <p id="invAddress" class="text-gray-600 mt-1">---</p>
-                    </td>
-                  </tr>
-                </table>
-
-                <!-- Table Details -->
-                <table class="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr class="border-b bg-amber-50 text-amber-900">
-                      <th class="p-3 w-2/5">Item Details</th>
-                      <th class="p-3">Original Price</th>
-                      <th class="p-3">Discount Price</th>
-                      <th class="p-3 text-center">Qty</th>
-                      <th class="p-3 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody id="invTableBody">
-                    <tr class="border-b">
-                      <td colspan="5" class="p-4 text-center text-gray-400">Add details & click Generate Invoice</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <div class="flex justify-end pt-2">
-                  <table class="w-1/2 text-right text-xs space-y-1">
+                  <!-- Customer Details Block -->
+                  <table class="w-full bg-amber-50/40 p-4 rounded text-xs">
                     <tr>
-                      <td class="py-1"><strong>Subtotal (Original):</strong></td>
-                      <td class="py-1 pl-4">LKR <span id="invSubtotal">0.00</span></td>
-                    </tr>
-                    <tr class="text-emerald-700">
-                      <td class="py-1"><strong>Total Discount Saved:</strong></td>
-                      <td class="py-1 pl-4">LKR <span id="invDiscount">0.00</span></td>
-                    </tr>
-                    <tr>
-                      <td class="py-1"><strong>Delivery Cost:</strong></td>
-                      <td class="py-1 pl-4">LKR <span id="invDelivery">0.00</span></td>
-                    </tr>
-                    <tr class="text-sm font-bold text-amber-950 border-t">
-                      <td class="pt-2">Grand Total:</td>
-                      <td class="pt-2 pl-4">LKR <span id="invGrandTotal">0.00</span></td>
+                      <td class="w-1/2 align-top p-2">
+                        <p><strong>Customer:</strong> <span id="invCustomer">---</span></p>
+                        <p class="mt-1"><strong>Phone 1:</strong> <span id="invPhone1">---</span></p>
+                        <p class="mt-1"><strong>Phone 2:</strong> <span id="invPhone2">---</span></p>
+                      </td>
+                      <td class="w-1/2 align-top p-2">
+                        <p><strong>Delivery Address:</strong></p>
+                        <p id="invAddress" class="text-gray-600 mt-1">---</p>
+                      </td>
                     </tr>
                   </table>
-                </div>
 
-                <p class="text-center text-xs text-gray-400 mt-6 pt-4 border-t">Thank you for shopping with The Saree Embassy!</p>
+                  <!-- Table Details -->
+                  <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr class="border-b bg-amber-50 text-amber-900">
+                        <th class="p-3 w-2/5">Item Details</th>
+                        <th class="p-3">Original Price</th>
+                        <th class="p-3">Discount Price</th>
+                        <th class="p-3 text-center">Qty</th>
+                        <th class="p-3 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody id="invTableBody">
+                      <tr class="border-b">
+                        <td colspan="5" class="p-4 text-center text-gray-400">Add details & click Generate Invoice</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div class="flex justify-end pt-2">
+                    <table class="w-1/2 text-right text-xs space-y-1">
+                      <tr>
+                        <td class="py-1"><strong>Subtotal (Original):</strong></td>
+                        <td class="py-1 pl-4">LKR <span id="invSubtotal">0.00</span></td>
+                      </tr>
+                      <tr class="text-emerald-700">
+                        <td class="py-1"><strong>Total Discount Saved:</strong></td>
+                        <td class="py-1 pl-4">LKR <span id="invDiscount">0.00</span></td>
+                      </tr>
+                      <tr>
+                        <td class="py-1"><strong>Delivery Cost:</strong></td>
+                        <td class="py-1 pl-4">LKR <span id="invDelivery">0.00</span></td>
+                      </tr>
+                      <tr class="text-sm font-bold text-amber-950 border-t">
+                        <td class="pt-2">Grand Total:</td>
+                        <td class="pt-2 pl-4">LKR <span id="invGrandTotal">0.00</span></td>
+                      </tr>
+                    </table>
+                  </div>
+
+                  <p class="text-center text-xs text-gray-400 mt-6 pt-4 border-t">Thank you for shopping with The Saree Embassy!</p>
+                </div>
               </div>
             </div>
 
@@ -716,7 +746,7 @@
         scale: 2, 
         useCORS: true, 
         logging: false,
-        windowWidth: 1024
+        windowWidth: 800
       });
 
       const imgData = canvas.toDataURL('image/png');
