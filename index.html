@@ -377,7 +377,7 @@
       document.getElementById('lblPhone2').innerText = phone2;
       document.getElementById('lblInvNo').innerText = invNum;
       document.getElementById('lblCodAmt').innerText = codAmount.toFixed(2);
-      document.getElementById('lblPayBadge').innerText = codAmount > 0 ? "COD" : "PREPAID";
+      document.getElementById('lblPayBadge').innerText = "COD";
 
       const rows = document.querySelectorAll('.item-row');
       const tbody = document.getElementById('invTableBody');
@@ -530,7 +530,7 @@
             <h3 class="text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
             <p class="text-xs text-gray-600">NO. 420/5A/01, Kadawatha Road, Ganemulla | WhatsApp: 0702394119</p>
           </div>
-          <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase">${(item.codAmount || 0) > 0 ? "COD" : "PREPAID"}</span>
+          <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase">COD</span>
         </div>
         <div class="flex flex-row gap-4">
           <div class="w-7/12 space-y-2">
