@@ -16,7 +16,6 @@
     .cod-sticker-area { width: 100%; min-height: 110px; border: 2px dashed #92400e; border-radius: 6px; display: flex; align-items: center; justify-content: center; text-align: center; background-color: #fffbeb; padding: 8px; }
     .invoice-preview-wrapper { width: 100%; overflow-x: auto; display: flex; justify-content: flex-start; }
     
-    /* Off-screen render container for background PDF generation */
     #offscreenRender { position: fixed; left: -9999px; top: -9999px; width: 800px; background: white; z-index: -1000; }
   </style>
 </head>
@@ -434,7 +433,6 @@
       });
     }
 
-    // Dynamic Element PDF Downloader
     function downloadElementPDF(elementId, filename, format = 'a4', orientation = 'p') {
       const { jsPDF } = window.jspdf;
       const element = document.getElementById(elementId);
@@ -450,7 +448,6 @@
       });
     }
 
-    // Directory Quick PDF Downloader Fix
     function downloadDirectoryInvoice(invNo) {
       const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
       if (!item) return;
@@ -598,6 +595,26 @@
       switchTab('orders');
     }
 
+    async function deleteOrder(invNo) {
+      if (!confirm(`Are you sure you want to delete Invoice #${invNo}? This action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'cors',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'deleteOrder', invNo })
+        });
+        alert(`Invoice #${invNo} deleted successfully.`);
+        renderCustomers();
+      } catch (err) {
+        alert("Failed to delete order.");
+      }
+    }
+
     function shareWhatsAppPDF() {
       const invNo = document.getElementById('invNo').innerText;
       const custName = document.getElementById('invCustomer').innerText;
@@ -661,6 +678,7 @@
                 <button onclick="editOrder('${item.invNo}')" class="bg-amber-800 hover:bg-amber-900 text-white text-[11px] px-2 py-1 rounded">Edit</button>
                 <button onclick="downloadDirectoryInvoice('${item.invNo}')" class="bg-amber-700 hover:bg-amber-800 text-white text-[10px] px-2 py-0.5 rounded">Invoice PDF</button>
                 <button onclick="downloadDirectoryLabel('${item.invNo}')" class="bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] px-2 py-0.5 rounded">Label PDF</button>
+                <button onclick="deleteOrder('${item.invNo}')" class="bg-red-600 hover:bg-red-700 text-white text-[10px] px-2 py-0.5 rounded">Delete</button>
               </div>
             </td>
           `;
