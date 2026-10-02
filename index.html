@@ -47,7 +47,6 @@
       padding: 8px;
     }
 
-    /* Invoice Preview Responsive Container */
     .invoice-preview-wrapper {
       width: 100%;
       overflow-x: auto;
@@ -56,7 +55,7 @@
       justify-content: flex-start;
     }
 
-    /* Offscreen hidden container for background PDF generation */
+    /* Offscreen hidden container for background PDF rendering */
     #pdfRenderContainer {
       position: absolute;
       left: -9999px;
@@ -104,7 +103,10 @@
       <!-- TAB 1: Orders, Invoice & Delivery Label -->
       <section id="tab-orders" class="tab-content">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
-          <h2 class="text-xl md:text-2xl font-bold font-serif text-amber-950">Create New Order</h2>
+          <div>
+            <h2 class="text-xl md:text-2xl font-bold font-serif text-amber-950" id="orderTabTitle">Create New Order</h2>
+            <p class="text-xs text-amber-800" id="editingNotice"></p>
+          </div>
           <button type="button" onclick="createNewOrder()" class="bg-amber-900 text-amber-100 hover:bg-amber-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm">
             <span>+</span> Clear / New Order
           </button>
@@ -115,6 +117,8 @@
           <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-4 space-y-4">
             <h3 class="font-semibold text-lg text-amber-900">Customer & Item Details</h3>
             <form id="orderForm" onsubmit="generateInvoice(event)" class="space-y-4">
+              <input type="hidden" id="editingInvNo" value="">
+              
               <input type="text" id="custName" placeholder="Customer Name" class="w-full border p-3 rounded text-base" required>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <input type="tel" id="custPhone1" placeholder="Primary Phone" class="w-full border p-3 rounded text-base" required>
@@ -129,19 +133,7 @@
                 </div>
                 
                 <div id="itemsContainer" class="space-y-3">
-                  <div class="item-row bg-[#fffbeb] p-3 rounded border border-amber-100 space-y-2 relative">
-                    <input type="text" placeholder="Saree Type / Design Name" class="saree-name w-full border p-2 rounded text-base" required>
-                    <div class="space-y-1">
-                      <label class="text-xs font-semibold text-gray-600">Upload Photo:</label>
-                      <input type="file" accept="image/*" class="saree-photo w-full text-xs border p-1 rounded bg-white" onchange="previewImage(this)">
-                      <div class="image-preview-container"></div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2">
-                      <input type="number" placeholder="Orig. Price" class="saree-orig-price w-full border p-2 rounded text-base" required>
-                      <input type="number" placeholder="Disc. Price" class="saree-disc-price w-full border p-2 rounded text-base" required>
-                      <input type="number" placeholder="Qty" value="1" min="1" class="saree-qty w-full border p-2 rounded text-base" required>
-                    </div>
-                  </div>
+                  <!-- Row 1 -->
                 </div>
 
                 <div class="grid grid-cols-2 gap-2 pt-2">
@@ -156,26 +148,24 @@
                 </div>
               </div>
 
-              <button type="submit" id="saveBtn" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900 active:scale-95 transition">Generate Invoice & Label</button>
+              <button type="submit" id="saveBtn" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900 active:scale-95 transition">Generate & Sync Invoice</button>
             </form>
           </div>
 
           <!-- Invoice & Label Preview Section -->
           <div class="lg:col-span-8 space-y-8">
-            
             <!-- Invoice Section -->
             <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100">
               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                 <h3 class="font-semibold text-lg text-amber-900">1. Invoice Preview</h3>
                 <div class="flex space-x-2 w-full sm:w-auto">
                   <button onclick="downloadPDF()" class="flex-1 sm:flex-none bg-amber-800 text-white px-3 py-1.5 rounded text-xs hover:bg-amber-900">Download Invoice PDF</button>
-                  <button onclick="shareWhatsAppPDF()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-700">Share Invoice via WA</button>
+                  <button onclick="shareWhatsAppPDF()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-700">Share via WA</button>
                 </div>
               </div>
               
               <div class="invoice-preview-wrapper bg-[#fffbeb] p-2 sm:p-4 rounded-xl border">
                 <div id="invoiceCard" class="pdf-render-canvas border p-6 sm:p-8 rounded bg-white text-gray-800 space-y-6 shadow-md">
-                  <!-- Header Section -->
                   <div class="border-b pb-4 flex justify-between items-start gap-4">
                     <div class="flex items-start space-x-3 w-2/3">
                       <label for="logoUpload" class="cursor-pointer shrink-0">
@@ -190,12 +180,11 @@
                       </div>
                     </div>
                     <div class="text-right w-1/3 shrink-0">
-                      <p class="text-sm font-bold text-amber-950">Invoice #: <span id="invNo">INV-001</span></p>
+                      <p class="text-sm font-bold text-amber-950">Invoice #: <span id="invNo">---</span></p>
                       <p class="text-xs text-gray-600 mt-1">Date: <span id="invDate">---</span></p>
                     </div>
                   </div>
 
-                  <!-- Customer Details Block -->
                   <table class="w-full bg-[#fffbeb] p-4 rounded text-xs border border-amber-100">
                     <tr>
                       <td class="w-1/2 align-top p-2">
@@ -210,7 +199,6 @@
                     </tr>
                   </table>
 
-                  <!-- Table Details -->
                   <table class="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr class="border-b bg-[#fef3c7] text-amber-900">
@@ -254,20 +242,18 @@
               </div>
             </div>
 
-            <!-- Courier Delivery Label Section -->
+            <!-- Courier Label Section -->
             <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 overflow-x-auto">
               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                 <h3 class="font-semibold text-lg text-amber-900">2. Courier Delivery Label</h3>
                 <div class="flex space-x-2 w-full sm:w-auto">
                   <button onclick="downloadLabelPDF()" class="flex-1 sm:flex-none bg-amber-800 text-white px-3 py-1.5 rounded text-xs hover:bg-amber-900">Download Label PDF</button>
-                  <button onclick="shareLabelWhatsApp()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-700">Share Label via WA</button>
+                  <button onclick="shareLabelWhatsApp()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-700">Share via WA</button>
                 </div>
               </div>
 
               <div class="flex justify-start bg-[#fffbeb] p-2 sm:p-4 rounded-xl border overflow-x-auto">
                 <div id="deliveryLabelCard" class="delivery-label-canvas border-2 border-amber-900 p-4 sm:p-6 rounded bg-white text-gray-800 space-y-4 shadow-md shrink-0">
-                  
-                  <!-- Header -->
                   <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-start sm:items-center gap-2">
                     <div>
                       <h3 class="text-lg sm:text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
@@ -279,21 +265,18 @@
                     </div>
                   </div>
 
-                  <!-- Delivery & COD Sticker Grid -->
                   <div class="flex flex-row gap-4">
-                    <!-- Delivery Recipient Info -->
                     <div class="w-7/12 space-y-2">
                       <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wider">DELIVER TO:</p>
                       <h2 class="text-base sm:text-lg font-bold text-gray-900 leading-snug" id="lblCustName">CUSTOMER NAME</h2>
-                      <p class="text-xs text-gray-700 whitespace-pre-line leading-relaxed" id="lblAddress">Delivery Address Line 1, Line 2, City</p>
+                      <p class="text-xs text-gray-700 whitespace-pre-line leading-relaxed" id="lblAddress">Delivery Address</p>
                       <div class="pt-2 flex flex-col gap-1 text-xs">
-                        <p><strong>Primary Phone:</strong> <span id="lblPhone1">07X XXXXXXX</span></p>
-                        <p><strong>Secondary Phone:</strong> <span id="lblPhone2">07X XXXXXXX</span></p>
-                        <p class="mt-1"><strong>Order Ref:</strong> <span id="lblInvNo">INV-0000</span></p>
+                        <p><strong>Primary Phone:</strong> <span id="lblPhone1">---</span></p>
+                        <p><strong>Secondary Phone:</strong> <span id="lblPhone2">---</span></p>
+                        <p class="mt-1"><strong>Order Ref:</strong> <span id="lblInvNo">---</span></p>
                       </div>
                     </div>
 
-                    <!-- COD Sticker Area Box -->
                     <div class="w-5/12 flex items-center justify-center">
                       <div class="cod-sticker-area">
                         <p class="text-xs text-amber-900 font-bold leading-tight">
@@ -304,7 +287,6 @@
                     </div>
                   </div>
 
-                  <!-- Footer -->
                   <div class="border-t-2 border-dashed border-gray-300 pt-3 flex flex-row justify-between items-center gap-3 text-xs">
                     <div>
                       <p class="text-gray-500">Please verify details before handover to courier.</p>
@@ -314,12 +296,10 @@
                       <p class="text-lg font-extrabold text-amber-950">LKR <span id="lblCodAmt">0.00</span></p>
                     </div>
                   </div>
-
                 </div>
               </div>
 
             </div>
-
           </div>
         </div>
       </section>
@@ -358,15 +338,14 @@
       <section id="tab-customers" class="tab-content hidden space-y-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-amber-100/60 p-4 rounded-xl border border-amber-200">
           <div>
-            <h2 class="text-xl font-bold text-amber-950 font-serif">Customer Directory (Live Google Sheet)</h2>
-            <p class="text-xs text-amber-800 mt-1">Real-time sync with Google Apps Script Web App</p>
+            <h2 class="text-xl font-bold text-amber-950 font-serif">Customer Directory</h2>
+            <p class="text-xs text-amber-800 mt-1">Real-time sync with Google Apps Script Backend</p>
           </div>
           <button id="syncNowBtn" onclick="renderCustomers()" class="inline-flex items-center gap-2 px-4 py-2 bg-amber-800 hover:bg-amber-900 text-amber-50 rounded-lg text-sm font-semibold shadow transition active:scale-95">
             Sync Now
           </button>
         </div>
 
-        <!-- Table Card -->
         <div class="bg-white rounded-xl shadow-sm border border-amber-200 overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
@@ -378,9 +357,9 @@
                   <th class="p-3">Phones & Address</th>
                   <th class="p-3">Saree Photo</th>
                   <th class="p-3">Items</th>
-                  <th class="p-3">Breakdown (Sub/Disc/Del)</th>
-                  <th class="p-3">Grand Total & COD</th>
+                  <th class="p-3">Totals & COD</th>
                   <th class="p-3">Payment Status</th>
+                  <th class="p-3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody id="customerTableBody" class="divide-y divide-amber-100">
@@ -398,11 +377,13 @@
     </main>
   </div>
 
-  <!-- Offscreen element for generating PDF without layout shifts -->
   <div id="pdfRenderContainer"></div>
 
   <!-- JavaScript Section -->
   <script>
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi9XxpdFjsvRRPwHl0RGY6wiizgJuyRk6r7jM7UgPeXDZoVQ_JD7rTFDZizwQcyzSX/exec";
+    let cachedSheetData = [];
+
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       const activeTab = document.getElementById('tab-' + tabId);
@@ -414,22 +395,32 @@
       }
     }
 
-    function addItemRow() {
+    // Dynamic Saree Item Rows
+    function addItemRow(data = null) {
       const container = document.getElementById('itemsContainer');
       const row = document.createElement('div');
       row.className = 'item-row bg-[#fffbeb] p-3 rounded border border-amber-100 space-y-2 relative';
+      
+      const name = data ? data.name : '';
+      const orig = data ? data.origPrice : '';
+      const disc = data ? data.discPrice : '';
+      const qty = data ? data.qty : 1;
+      const imgSrc = data ? data.imgSrc : '';
+
       row.innerHTML = `
         <button type="button" onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-red-500 font-bold text-xs">✕</button>
-        <input type="text" placeholder="Saree Type / Design Name" class="saree-name w-full border p-2 rounded text-base" required>
+        <input type="text" placeholder="Saree Type / Design Name" value="${name}" class="saree-name w-full border p-2 rounded text-base" required>
         <div class="space-y-1">
           <label class="text-xs font-semibold text-gray-600">Upload Photo:</label>
           <input type="file" accept="image/*" class="saree-photo w-full text-xs border p-1 rounded bg-white" onchange="previewImage(this)">
-          <div class="image-preview-container"></div>
+          <div class="image-preview-container">
+            ${imgSrc ? `<img src="${imgSrc}" class="saree-img-box">` : ''}
+          </div>
         </div>
         <div class="grid grid-cols-3 gap-2">
-          <input type="number" placeholder="Orig. Price" class="saree-orig-price w-full border p-2 rounded text-base" required>
-          <input type="number" placeholder="Disc. Price" class="saree-disc-price w-full border p-2 rounded text-base" required>
-          <input type="number" placeholder="Qty" value="1" min="1" class="saree-qty w-full border p-2 rounded text-base" required>
+          <input type="number" placeholder="Orig. Price" value="${orig}" class="saree-orig-price w-full border p-2 rounded text-base" required>
+          <input type="number" placeholder="Disc. Price" value="${disc}" class="saree-disc-price w-full border p-2 rounded text-base" required>
+          <input type="number" placeholder="Qty" value="${qty}" min="1" class="saree-qty w-full border p-2 rounded text-base" required>
         </div>
       `;
       container.appendChild(row);
@@ -460,26 +451,38 @@
       }
     }
 
-    function createNewOrder() {
-      document.getElementById('orderForm').reset();
-      document.getElementById('itemsContainer').innerHTML = `
-        <div class="item-row bg-[#fffbeb] p-3 rounded border border-amber-100 space-y-2 relative">
-          <input type="text" placeholder="Saree Type / Design Name" class="saree-name w-full border p-2 rounded text-base" required>
-          <div class="space-y-1">
-            <label class="text-xs font-semibold text-gray-600">Upload Photo:</label>
-            <input type="file" accept="image/*" class="saree-photo w-full text-xs border p-1 rounded bg-white" onchange="previewImage(this)">
-            <div class="image-preview-container"></div>
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <input type="number" placeholder="Orig. Price" class="saree-orig-price w-full border p-2 rounded text-base" required>
-            <input type="number" placeholder="Disc. Price" class="saree-disc-price w-full border p-2 rounded text-base" required>
-            <input type="number" placeholder="Qty" value="1" min="1" class="saree-qty w-full border p-2 rounded text-base" required>
-          </div>
-        </div>
-      `;
+    // YYMMDD001 Sequential Invoice ID Generation logic
+    function getNextInvoiceNumber() {
+      const now = new Date();
+      const yy = String(now.getFullYear()).slice(-2);
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const datePrefix = `${yy}${mm}${dd}`;
+
+      let maxSeq = 0;
+      cachedSheetData.forEach(item => {
+        if (item.invNo && String(item.invNo).startsWith(datePrefix)) {
+          const seq = parseInt(String(item.invNo).slice(-3), 10);
+          if (!isNaN(seq) && seq > maxSeq) {
+            maxSeq = seq;
+          }
+        }
+      });
+
+      const nextSeq = String(maxSeq + 1).padStart(3, '0');
+      return `${datePrefix}${nextSeq}`;
     }
 
-    // Generate Invoice UI Preview & Calculate Totals
+    function createNewOrder() {
+      document.getElementById('orderForm').reset();
+      document.getElementById('editingInvNo').value = "";
+      document.getElementById('orderTabTitle').innerText = "Create New Order";
+      document.getElementById('editingNotice').innerText = "";
+      document.getElementById('itemsContainer').innerHTML = "";
+      addItemRow();
+    }
+
+    // Generate Invoice UI & Post to Google Sheet
     function generateInvoice(event) {
       event.preventDefault();
 
@@ -490,10 +493,16 @@
       const deliveryCost = parseFloat(document.getElementById('deliveryCostInput').value) || 0;
       const codAmount = parseFloat(document.getElementById('codAmountInput').value) || 0;
 
-      const invNum = "INV-" + Math.floor(1000 + Math.random() * 9000);
+      let invNum = document.getElementById('editingInvNo').value;
+      const isEdit = !!invNum;
+      
+      if (!invNum) {
+        invNum = getNextInvoiceNumber();
+      }
+
       const today = new Date().toLocaleDateString();
 
-      // Populate Invoice
+      // Update Invoice DOM
       document.getElementById('invNo').innerText = invNum;
       document.getElementById('invDate').innerText = today;
       document.getElementById('invCustomer').innerText = name;
@@ -501,7 +510,7 @@
       document.getElementById('invPhone2').innerText = phone2;
       document.getElementById('invAddress').innerText = address;
 
-      // Populate Delivery Label
+      // Update Label DOM
       document.getElementById('lblCustName').innerText = name;
       document.getElementById('lblAddress').innerText = address;
       document.getElementById('lblPhone1').innerText = phone1;
@@ -519,6 +528,7 @@
       let totalGrand = 0;
       let itemsSummaryText = [];
       let photoBase64 = "";
+      let rawItemsArr = [];
 
       rows.forEach(row => {
         const sareeName = row.querySelector('.saree-name').value;
@@ -528,8 +538,16 @@
         const imgBox = row.querySelector('.saree-img-box');
 
         if (imgBox && imgBox.src && !photoBase64) {
-          photoBase64 = imgBox.src; // Capture first photo
+          photoBase64 = imgBox.src;
         }
+
+        rawItemsArr.push({
+          name: sareeName,
+          origPrice: origPrice,
+          discPrice: discPrice,
+          qty: qty,
+          imgSrc: imgBox ? imgBox.src : ''
+        });
 
         const lineTotal = discPrice * qty;
         subtotalOrig += (origPrice * qty);
@@ -560,8 +578,8 @@
       document.getElementById('invDelivery').innerText = deliveryCost.toFixed(2);
       document.getElementById('invGrandTotal').innerText = finalGrandTotal.toFixed(2);
 
-      // Save complete details to Google Sheets
       const sheetPayload = {
+        action: isEdit ? "updateOrder" : "addOrder",
         invNo: invNum,
         date: today,
         name: name,
@@ -575,13 +593,14 @@
         deliveryCost: deliveryCost,
         grandTotal: finalGrandTotal,
         codAmount: codAmount,
-        paymentStatus: codAmount > 0 ? "COD Pending" : "Paid"
+        paymentStatus: codAmount > 0 ? "Pending" : "Completed",
+        rawItemsJson: JSON.stringify(rawItemsArr)
       };
 
       saveInvoiceToSheet(sheetPayload);
     }
 
-    // PDF Downloads
+    // PDF Download Functions
     function downloadPDF() {
       const { jsPDF } = window.jspdf;
       const element = document.getElementById('invoiceCard');
@@ -606,6 +625,103 @@
         pdf.addImage(imgData, 'PNG', 0, 0, width, height);
         pdf.save(`LABEL-${document.getElementById('lblInvNo').innerText}.pdf`);
       });
+    }
+
+    // Direct Directory Download Trigger Functions
+    function downloadDirectoryInvoice(invNo) {
+      const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
+      if (!item) return;
+      populateInvoiceAndLabelDOM(item);
+      downloadPDF();
+    }
+
+    function downloadDirectoryLabel(invNo) {
+      const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
+      if (!item) return;
+      populateInvoiceAndLabelDOM(item);
+      downloadLabelPDF();
+    }
+
+    function populateInvoiceAndLabelDOM(item) {
+      document.getElementById('invNo').innerText = item.invNo;
+      document.getElementById('invDate').innerText = item.date;
+      document.getElementById('invCustomer').innerText = item.name;
+      document.getElementById('invPhone1').innerText = item.phone1;
+      document.getElementById('invPhone2').innerText = item.phone2 || 'N/A';
+      document.getElementById('invAddress').innerText = item.address;
+
+      document.getElementById('lblCustName').innerText = item.name;
+      document.getElementById('lblAddress').innerText = item.address;
+      document.getElementById('lblPhone1').innerText = item.phone1;
+      document.getElementById('lblPhone2').innerText = item.phone2 || 'N/A';
+      document.getElementById('lblInvNo').innerText = item.invNo;
+      document.getElementById('lblCodAmt').innerText = (item.codAmount || 0).toFixed(2);
+      document.getElementById('lblPayBadge').innerText = item.codAmount > 0 ? "COD" : "PREPAID";
+
+      document.getElementById('invSubtotal').innerText = (item.subtotal || 0).toFixed(2);
+      document.getElementById('invDiscount').innerText = (item.discount || 0).toFixed(2);
+      document.getElementById('invDelivery').innerText = (item.deliveryCost || 0).toFixed(2);
+      document.getElementById('invGrandTotal').innerText = (item.grandTotal || 0).toFixed(2);
+
+      const tbody = document.getElementById('invTableBody');
+      tbody.innerHTML = '';
+      
+      let rawItems = [];
+      try { rawItems = JSON.parse(item.rawItemsJson); } catch(e){}
+
+      if (rawItems.length > 0) {
+        rawItems.forEach(it => {
+          const tr = document.createElement('tr');
+          tr.className = "border-b";
+          tr.innerHTML = `
+            <td class="p-3">
+              <p class="font-semibold text-gray-800">${it.name}</p>
+              ${it.imgSrc ? `<img src="${it.imgSrc}" class="saree-img-box">` : ''}
+            </td>
+            <td class="p-3 text-gray-500 line-through">LKR ${(it.origPrice || 0).toFixed(2)}</td>
+            <td class="p-3 font-semibold text-amber-900">LKR ${(it.discPrice || 0).toFixed(2)}</td>
+            <td class="p-3 text-center">${it.qty}</td>
+            <td class="p-3 text-right font-bold text-gray-800">LKR ${((it.discPrice || 0) * it.qty).toFixed(2)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } else {
+        const tr = document.createElement('tr');
+        tr.className = "border-b";
+        tr.innerHTML = `<td colspan="5" class="p-3 font-semibold">${item.itemsSummary}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    // Edit Existing Order Function
+    function editOrder(invNo) {
+      const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
+      if (!item) return;
+
+      document.getElementById('editingInvNo').value = item.invNo;
+      document.getElementById('orderTabTitle').innerText = `Editing Order: ${item.invNo}`;
+      document.getElementById('editingNotice').innerText = `Modifying order under Invoice #${item.invNo}`;
+
+      document.getElementById('custName').value = item.name;
+      document.getElementById('custPhone1').value = item.phone1;
+      document.getElementById('custPhone2').value = item.phone2 === 'N/A' ? '' : item.phone2;
+      document.getElementById('custAddress').value = item.address;
+      document.getElementById('deliveryCostInput').value = item.deliveryCost || 350;
+      document.getElementById('codAmountInput').value = item.codAmount || 0;
+
+      const container = document.getElementById('itemsContainer');
+      container.innerHTML = "";
+
+      let rawItems = [];
+      try { rawItems = JSON.parse(item.rawItemsJson); } catch(e){}
+
+      if (rawItems.length > 0) {
+        rawItems.forEach(it => addItemRow(it));
+      } else {
+        addItemRow();
+      }
+
+      switchTab('orders');
     }
 
     // WhatsApp Sharing Functions
@@ -633,8 +749,116 @@
       window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
 
-    // Charts Setup
+    // Customer Directory Rendering with Dropdowns & Direct Action Buttons
+    async function renderCustomers() {
+      const custTbody = document.getElementById('customerTableBody');
+      if (!custTbody) return;
+
+      custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-amber-800 font-medium">Loading live data from Google Sheets...</td></tr>`;
+
+      try {
+        const res = await fetch(GOOGLE_SCRIPT_URL, {
+          method: "GET",
+          redirect: "follow"
+        });
+
+        const textData = await res.text();
+        const data = JSON.parse(textData);
+
+        if (!Array.isArray(data) || data.length === 0) {
+          custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-amber-700">No orders found in Google Sheet.</td></tr>`;
+          return;
+        }
+
+        cachedSheetData = data;
+        custTbody.innerHTML = "";
+
+        data.forEach(item => {
+          const row = document.createElement("tr");
+          row.className = "border-b border-amber-100 hover:bg-amber-50/50 text-amber-900";
+          row.innerHTML = `
+            <td class="p-3 font-bold">${item.invNo || ''}</td>
+            <td class="p-3 whitespace-nowrap">${item.date || ''}</td>
+            <td class="p-3 font-medium">${item.name || ''}</td>
+            <td class="p-3 text-xs whitespace-pre-line">${item.phone1 || ''}${item.phone2 ? '\n' + item.phone2 : ''}\n${item.address || ''}</td>
+            <td class="p-3 text-xs">
+              ${item.photoUrl ? `<a href="${item.photoUrl}" target="_blank" class="text-xs text-amber-800 font-bold underline">View Photo</a>` : '<span class="text-gray-400">No Photo</span>'}
+            </td>
+            <td class="p-3 text-xs">${item.itemsSummary || ''}</td>
+            <td class="p-3 text-xs">
+              <p class="font-bold text-emerald-800 text-sm">Total: LKR ${(item.grandTotal || 0).toLocaleString()}</p>
+              <p class="text-amber-900">COD: LKR ${(item.codAmount || 0).toLocaleString()}</p>
+            </td>
+            <td class="p-3">
+              <select onchange="updatePaymentStatus('${item.invNo}', this.value)" class="text-xs font-semibold p-1.5 rounded border ${item.paymentStatus === 'Completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}">
+                <option value="Pending" ${item.paymentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Completed" ${item.paymentStatus === 'Completed' ? 'selected' : ''}>Completed</option>
+              </select>
+            </td>
+            <td class="p-3 text-center">
+              <div class="flex flex-col gap-1">
+                <button onclick="editOrder('${item.invNo}')" class="bg-amber-800 hover:bg-amber-900 text-white text-[11px] px-2 py-1 rounded">Edit</button>
+                <button onclick="downloadDirectoryInvoice('${item.invNo}')" class="bg-amber-700 hover:bg-amber-800 text-white text-[10px] px-2 py-0.5 rounded">Invoice PDF</button>
+                <button onclick="downloadDirectoryLabel('${item.invNo}')" class="bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] px-2 py-0.5 rounded">Label PDF</button>
+              </div>
+            </td>
+          `;
+          custTbody.appendChild(row);
+        });
+
+      } catch (err) {
+        console.error("Fetch Error:", err);
+        custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-red-600 font-semibold">Failed to load Google Sheets data. Please check connection.</td></tr>`;
+      }
+    }
+
+    // Direct Payment Status Update Handler
+    async function updatePaymentStatus(invNo, status) {
+      try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'cors',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'updateStatus',
+            invNo: invNo,
+            paymentStatus: status
+          })
+        });
+
+        const cached = cachedSheetData.find(d => String(d.invNo) === String(invNo));
+        if (cached) cached.paymentStatus = status;
+
+      } catch (err) {
+        console.error("Status Update Failed:", err);
+        alert("Failed to update status in Google Sheet.");
+      }
+    }
+
+    async function saveInvoiceToSheet(payload) {
+      try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'cors',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        alert(`Order saved successfully under Invoice #${payload.invNo}!`);
+        createNewOrder();
+        renderCustomers();
+      } catch (err) {
+        console.error("Error saving invoice:", err);
+        alert("Failed to save order to Google Sheets. Check browser console.");
+      }
+    }
+
+    // Initialize Default View
     window.addEventListener('DOMContentLoaded', () => {
+      createNewOrder();
+      
       const salesCtx = document.getElementById('salesChart')?.getContext('2d');
       if (salesCtx) {
         new Chart(salesCtx, {
@@ -668,95 +892,6 @@
         });
       }
     });
-  </script>
-
-  <!-- GOOGLE APPS SCRIPT LIVE DATA SYNC SCRIPT -->
-  <script>
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi9XxpdFjsvRRPwHl0RGY6wiizgJuyRk6r7jM7UgPeXDZoVQ_JD7rTFDZizwQcyzSX/exec";
-
-    // Fetch and display customers in Customer Directory
-    async function renderCustomers() {
-      const custTbody = document.getElementById('customerTableBody');
-      if (!custTbody) return;
-
-      custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-amber-800 font-medium">Loading live data from Google Sheets...</td></tr>`;
-
-      try {
-        const res = await fetch(GOOGLE_SCRIPT_URL, {
-          method: "GET",
-          redirect: "follow"
-        });
-
-        const textData = await res.text();
-        let data;
-        
-        try {
-          data = JSON.parse(textData);
-        } catch (parseError) {
-          throw new Error("Invalid response received from Google Sheets.");
-        }
-
-        if (!Array.isArray(data) || data.length === 0) {
-          custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-amber-700">No orders found in Google Sheet.</td></tr>`;
-          return;
-        }
-
-        custTbody.innerHTML = "";
-        data.forEach(item => {
-          const row = document.createElement("tr");
-          row.className = "border-b border-amber-100 hover:bg-amber-50/50 text-amber-900";
-          row.innerHTML = `
-            <td class="p-3 font-medium">${item.invNo || ''}</td>
-            <td class="p-3">${item.date || ''}</td>
-            <td class="p-3 font-medium">${item.name || ''}</td>
-            <td class="p-3 text-xs whitespace-pre-line">${item.phone1 || ''}${item.phone2 ? '\n' + item.phone2 : ''}\n${item.address || ''}</td>
-            <td class="p-3 text-xs">
-              ${item.photoUrl ? `<a href="${item.photoUrl}" target="_blank" class="text-xs text-amber-800 font-bold underline">View Photo</a>` : '<span class="text-gray-400">No Photo</span>'}
-            </td>
-            <td class="p-3 text-xs">${item.itemsSummary || ''}</td>
-            <td class="p-3 text-xs space-y-0.5">
-              <p>Subtotal: LKR ${(item.subtotal || 0).toLocaleString()}</p>
-              <p class="text-emerald-700">Disc: LKR ${(item.discount || 0).toLocaleString()}</p>
-              <p>Delivery: LKR ${(item.deliveryCost || 0).toLocaleString()}</p>
-            </td>
-            <td class="p-3 text-xs">
-              <p class="font-bold text-emerald-800 text-sm">LKR ${(item.grandTotal || 0).toLocaleString()}</p>
-              <p class="text-amber-900">COD: LKR ${(item.codAmount || 0).toLocaleString()}</p>
-            </td>
-            <td class="p-3">
-              <span class="px-2 py-1 rounded text-xs font-semibold ${item.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
-                ${item.paymentStatus || 'Pending'}
-              </span>
-            </td>
-          `;
-          custTbody.appendChild(row);
-        });
-
-      } catch (err) {
-        console.error("Fetch Error:", err);
-        custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-red-600 font-semibold">Failed to load Google Sheets data. Please check your network or permissions.</td></tr>`;
-      }
-    }
-
-    // Save new order / invoice to Google Sheets
-    async function saveInvoiceToSheet(payload) {
-      try {
-        payload.action = "addOrder";
-        
-        await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'cors',
-          redirect: 'follow',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
-        console.log("Invoice and photo uploaded successfully to Google Drive & Sheets");
-      } catch (err) {
-        console.error("Error saving invoice to sheet:", err);
-        alert("Failed to save order to Google Sheets. Check browser console for details.");
-      }
-    }
   </script>
 
 </body>
