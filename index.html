@@ -31,10 +31,16 @@
       max-width: none !important;
       background-color: #ffffff !important;
     }
-    /* 1.5 in x 3 in proportional canvas box */
+    /* Responsive Delivery Label canvas */
+    .delivery-label-canvas {
+      width: 100%;
+      max-width: 650px;
+      background-color: #ffffff !important;
+    }
+    /* Proportional COD Sticker Box */
     .cod-sticker-area {
-      width: 3in;
-      height: 1.5in;
+      width: 100%;
+      min-height: 110px;
       border: 2px dashed #92400e;
       border-radius: 6px;
       display: flex;
@@ -42,6 +48,7 @@
       justify-content: center;
       text-align: center;
       background-color: #fffbeb;
+      padding: 8px;
     }
   </style>
 </head>
@@ -222,23 +229,27 @@
                 </div>
               </div>
 
-              <div class="flex justify-center bg-amber-50/20 p-4 rounded-xl border">
-                <div id="deliveryLabelCard" class="w-[650px] border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4 shadow-md">
-                  <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-center">
+              <div class="flex justify-center bg-amber-50/20 p-2 sm:p-4 rounded-xl border overflow-x-auto">
+                <div id="deliveryLabelCard" class="delivery-label-canvas border-2 border-amber-900 p-4 sm:p-6 rounded bg-white text-gray-800 space-y-4 shadow-md">
+                  
+                  <!-- Header -->
+                  <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-start sm:items-center gap-2">
                     <div>
-                      <h3 class="text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
-                      <p class="text-xs text-gray-600">Kadawatha Road, Ganemulla | 0702394119</p>
+                      <h3 class="text-lg sm:text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
+                      <p class="text-xs text-gray-600 leading-tight">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
+                      <p class="text-xs text-gray-600">WhatsApp: 0702394119</p>
                     </div>
-                    <div class="text-right">
-                      <span class="bg-amber-900 text-white text-xs px-2 py-1 rounded font-bold uppercase" id="lblPayBadge">COD</span>
+                    <div class="shrink-0">
+                      <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase" id="lblPayBadge">COD</span>
                     </div>
                   </div>
 
-                  <div class="grid grid-cols-12 gap-4">
+                  <!-- Delivery & COD Sticker Grid -->
+                  <div class="flex flex-col sm:flex-row gap-4">
                     <!-- Delivery Recipient Info -->
-                    <div class="col-span-7 space-y-2">
-                      <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">DELIVER TO:</p>
-                      <h2 class="text-lg font-bold text-gray-900" id="lblCustName">CUSTOMER NAME</h2>
+                    <div class="w-full sm:w-7/12 space-y-2">
+                      <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wider">DELIVER TO:</p>
+                      <h2 class="text-base sm:text-lg font-bold text-gray-900 leading-snug" id="lblCustName">CUSTOMER NAME</h2>
                       <p class="text-xs text-gray-700 whitespace-pre-line leading-relaxed" id="lblAddress">Delivery Address Line 1, Line 2, City</p>
                       <div class="pt-2 flex flex-col gap-1 text-xs">
                         <p><strong>Primary Phone:</strong> <span id="lblPhone1">07X XXXXXXX</span></p>
@@ -247,8 +258,8 @@
                       </div>
                     </div>
 
-                    <!-- COD Sticker Area Box (1.5" x 3") -->
-                    <div class="col-span-5 flex flex-col items-center justify-center">
+                    <!-- COD Sticker Area Box -->
+                    <div class="w-full sm:w-5/12 flex items-center justify-center">
                       <div class="cod-sticker-area">
                         <p class="text-xs text-amber-900 font-bold leading-tight">
                           PLACE COD STICKER HERE<br>
@@ -258,15 +269,17 @@
                     </div>
                   </div>
 
-                  <div class="border-t-2 border-dashed border-gray-300 pt-3 flex justify-between items-center text-xs">
+                  <!-- Footer -->
+                  <div class="border-t-2 border-dashed border-gray-300 pt-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
                     <div>
                       <p class="text-gray-500">Please verify details before handover to courier.</p>
                     </div>
-                    <div class="text-right bg-amber-50 px-4 py-2 rounded border border-amber-200">
+                    <div class="w-full sm:w-auto text-left sm:text-right bg-amber-50 px-4 py-2 rounded border border-amber-200">
                       <p class="text-gray-600 font-bold text-[11px]">COLLECT CASH (COD):</p>
                       <p class="text-lg font-extrabold text-amber-950">LKR <span id="lblCodAmt">0.00</span></p>
                     </div>
                   </div>
+
                 </div>
               </div>
 
@@ -306,7 +319,7 @@
         </div>
       </section>
 
-      <!-- TAB 4: Customer Directory with PDF Download Actions -->
+      <!-- TAB 4: Customer Directory -->
       <section id="tab-customers" class="tab-content hidden">
         <div class="flex justify-between items-center mb-4 md:mb-6">
           <h2 class="text-xl md:text-2xl font-bold font-serif text-amber-950">Customer Directory (Live Google Sheet)</h2>
