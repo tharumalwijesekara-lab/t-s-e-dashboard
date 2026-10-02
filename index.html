@@ -1,815 +1,84 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>The Saree Embassy - Business Dashboard & Delivery Portal</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- jsPDF & html2canvas -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <style>
-    .brand-logo-box {
-      width: 90px;
-      height: 90px;
-      object-fit: cover;
-      border-radius: 6px;
-    }
-    .saree-img-box {
-      width: 70px;
-      height: 100px;
-      object-fit: cover;
-      border: 1px solid #e5e7eb;
-      border-radius: 4px;
-      margin-top: 6px;
-    }
-    .pdf-render-canvas {
-      width: 800px;
-      background-color: #ffffff !important;
-    }
-    .delivery-label-canvas {
-      width: 650px;
-      background-color: #ffffff !important;
-    }
-    .cod-sticker-area {
-      width: 100%;
-      min-height: 110px;
-      border: 2px dashed #92400e;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      background-color: #fffbeb;
-      padding: 8px;
-    }
+<script>
+  // Your Google Apps Script Web App URL
+  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi9XxpdFjsvRRPwHl0RGY6wiizgJuyRk6r7jM7UgPeXDZoVQ_JD7rTFDZizwQcyzSX/exec";
 
-    /* Invoice Preview Responsive Container for Screen Viewing */
-    .invoice-preview-wrapper {
-      width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      display: flex;
-      justify-content: flex-start;
-    }
+  // Fetch and display customers in the Customer Directory
+  async function renderCustomers() {
+    const custTbody = document.getElementById('customerTableBody');
+    if (!custTbody) return;
 
-    /* Offscreen hidden container for background PDF generation */
-    #pdfRenderContainer {
-      position: absolute;
-      left: -9999px;
-      top: -9999px;
-      width: 800px;
-      background: white;
-    }
+    custTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">Loading live data from Google Sheets...</td></tr>`;
 
-    @media print {
-      body * {
-        visibility: hidden;
-      }
-      #invoiceCard, #invoiceCard * {
-        visibility: visible;
-      }
-      #invoiceCard {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100% !important;
-        max-width: 800px !important;
-        padding: 0 !important;
-        margin: 0 !important;
-      }
-    }
-  </style>
-</head>
-<body class="bg-[#fefce8] text-gray-800 font-sans antialiased">
+    try {
+      const res = await fetch(GOOGLE_SCRIPT_URL, {
+        method: "GET",
+        redirect: "follow" // CRITICAL: Follows Google Apps Script redirects
+      });
 
-  <div class="flex flex-col md:flex-row min-h-screen">
-    <!-- Sidebar Navigation -->
-    <aside class="w-full md:w-64 bg-amber-900 text-amber-100 flex flex-col p-4 md:p-5 space-y-4 shrink-0">
-      <h1 class="text-xl md:text-2xl font-serif font-bold text-amber-300">The Saree Embassy</h1>
-      <nav class="flex md:flex-col overflow-x-auto space-x-2 md:space-x-0 md:space-y-3 pb-2 md:pb-0">
-        <button onclick="switchTab('orders')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition text-sm md:text-base font-medium">Orders & Invoice</button>
-        <button onclick="switchTab('inventory')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition text-sm md:text-base font-medium">Inventory & Pricing</button>
-        <button onclick="switchTab('analytics')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition text-sm md:text-base font-medium">Sales Analytics</button>
-        <button onclick="switchTab('customers')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition text-sm md:text-base font-medium">Customer Directory</button>
-      </nav>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto p-4 md:p-8">
+      const textData = await res.text();
+      let data;
       
-      <!-- TAB 1: Orders, Invoice & Delivery Label -->
-      <section id="tab-orders" class="tab-content">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
-          <h2 class="text-xl md:text-2xl font-bold font-serif text-amber-950">Create New Order</h2>
-          <button type="button" onclick="createNewOrder()" class="bg-amber-900 text-amber-100 hover:bg-amber-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm">
-            <span>+</span> Create New Order
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <!-- Order Entry Form -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-4 space-y-4">
-            <h3 class="font-semibold text-lg text-amber-900">Customer & Item Details</h3>
-            <form id="orderForm" onsubmit="generateInvoice(event)" class="space-y-4">
-              <input type="text" id="custName" placeholder="Customer Name" class="w-full border p-3 rounded text-base" required>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input type="tel" id="custPhone1" placeholder="Primary Phone" class="w-full border p-3 rounded text-base" required>
-                <input type="tel" id="custPhone2" placeholder="Secondary Phone" class="w-full border p-3 rounded text-base">
-              </div>
-              <textarea id="custAddress" placeholder="Delivery Address" class="w-full border p-3 rounded text-base h-20" required></textarea>
-
-              <div class="border-t pt-4 space-y-3">
-                <div class="flex justify-between items-center mb-2">
-                  <h3 class="font-semibold text-base text-amber-900">Saree Items & Photos</h3>
-                  <button type="button" onclick="addItemRow()" class="text-xs bg-amber-100 text-amber-900 font-bold px-2 py-1 rounded hover:bg-amber-200">+ Add Item</button>
-                </div>
-                
-                <div id="itemsContainer" class="space-y-3">
-                  <div class="item-row bg-[#fffbeb] p-3 rounded border border-amber-100 space-y-2 relative">
-                    <input type="text" placeholder="Saree Type / Design Name" class="saree-name w-full border p-2 rounded text-base" required>
-                    <div class="space-y-1">
-                      <label class="text-xs font-semibold text-gray-600">Upload Photo:</label>
-                      <input type="file" accept="image/*" class="saree-photo w-full text-xs border p-1 rounded bg-white" onchange="previewImage(this)">
-                    </div>
-                    <div class="grid grid-cols-3 gap-2">
-                      <input type="number" placeholder="Original Price" class="saree-orig-price w-full border p-2 rounded text-base" required>
-                      <input type="number" placeholder="Discount Price" class="saree-disc-price w-full border p-2 rounded text-base" required>
-                      <input type="number" placeholder="Qty" value="1" min="1" class="saree-qty w-full border p-2 rounded text-base" required>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2 pt-2">
-                  <div>
-                    <label class="text-xs font-semibold text-amber-900">Delivery Cost (LKR):</label>
-                    <input type="number" id="deliveryCostInput" value="0" min="0" class="w-full border p-2 rounded text-base mt-1" required>
-                  </div>
-                  <div>
-                    <label class="text-xs font-semibold text-amber-900">COD Amount (LKR):</label>
-                    <input type="number" id="codAmountInput" value="0" min="0" class="w-full border p-2 rounded text-base mt-1">
-                  </div>
-                </div>
-              </div>
-
-              <button type="submit" id="saveBtn" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900 active:scale-95 transition">Generate Invoice & Label</button>
-            </form>
-          </div>
-
-          <!-- Invoice & Label Preview Section -->
-          <div class="lg:col-span-8 space-y-8">
-            
-            <!-- Invoice Section -->
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100">
-              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-                <h3 class="font-semibold text-lg text-amber-900">1. Invoice Preview</h3>
-                <div class="flex space-x-2 w-full sm:w-auto">
-                  <button onclick="downloadPDF()" class="flex-1 sm:flex-none bg-amber-800 text-white px-3 py-1.5 rounded text-xs hover:bg-amber-900">Download Invoice PDF</button>
-                  <button onclick="shareWhatsAppPDF()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-700">Share Invoice via WA</button>
-                </div>
-              </div>
-              
-              <div class="invoice-preview-wrapper bg-[#fffbeb] p-2 sm:p-4 rounded-xl border">
-                <div id="invoiceCard" class="pdf-render-canvas border p-6 sm:p-8 rounded bg-white text-gray-800 space-y-6 shadow-md">
-                  <!-- Header Section -->
-                  <div class="border-b pb-4 flex justify-between items-start gap-4">
-                    <div class="flex items-start space-x-3 w-2/3">
-                      <label for="logoUpload" class="cursor-pointer shrink-0">
-                        <img id="brandLogo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>" title="Click to upload logo" alt="Logo" class="brand-logo-box border border-amber-200 rounded p-1 bg-[#fffbeb]">
-                      </label>
-                      <input type="file" id="logoUpload" accept="image/*" class="hidden" onchange="loadLogo(this)">
-                      <div>
-                        <h4 class="text-xl font-bold font-serif text-amber-900 tracking-wide leading-tight">THE SAREE EMBASSY</h4>
-                        <p class="text-xs font-semibold text-amber-800 mt-0.5">Luxury Sarees</p>
-                        <p class="text-xs text-gray-600 mt-1 leading-tight">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
-                        <p class="text-xs text-gray-600 mt-0.5">WhatsApp: <strong>0702394119</strong></p>
-                      </div>
-                    </div>
-                    <div class="text-right w-1/3 shrink-0">
-                      <p class="text-sm font-bold text-amber-950">Invoice #: <span id="invNo">INV-001</span></p>
-                      <p class="text-xs text-gray-600 mt-1">Date: <span id="invDate">---</span></p>
-                    </div>
-                  </div>
-
-                  <!-- Customer Details Block -->
-                  <table class="w-full bg-[#fffbeb] p-4 rounded text-xs border border-amber-100">
-                    <tr>
-                      <td class="w-1/2 align-top p-2">
-                        <p><strong>Customer:</strong> <span id="invCustomer">---</span></p>
-                        <p class="mt-1"><strong>Phone 1:</strong> <span id="invPhone1">---</span></p>
-                        <p class="mt-1"><strong>Phone 2:</strong> <span id="invPhone2">---</span></p>
-                      </td>
-                      <td class="w-1/2 align-top p-2">
-                        <p><strong>Delivery Address:</strong></p>
-                        <p id="invAddress" class="text-gray-600 mt-1">---</p>
-                      </td>
-                    </tr>
-                  </table>
-
-                  <!-- Table Details -->
-                  <table class="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr class="border-b bg-[#fef3c7] text-amber-900">
-                        <th class="p-3 w-2/5">Item Details</th>
-                        <th class="p-3">Original Price</th>
-                        <th class="p-3">Discount Price</th>
-                        <th class="p-3 text-center">Qty</th>
-                        <th class="p-3 text-right">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody id="invTableBody">
-                      <tr class="border-b">
-                        <td colspan="5" class="p-4 text-center text-gray-400">Add details & click Generate Invoice</td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <div class="flex justify-end pt-2">
-                    <table class="w-1/2 text-right text-xs space-y-1">
-                      <tr>
-                        <td class="py-1"><strong>Subtotal (Original):</strong></td>
-                        <td class="py-1 pl-4">LKR <span id="invSubtotal">0.00</span></td>
-                      </tr>
-                      <tr class="text-emerald-700">
-                        <td class="py-1"><strong>Total Discount Saved:</strong></td>
-                        <td class="py-1 pl-4">LKR <span id="invDiscount">0.00</span></td>
-                      </tr>
-                      <tr>
-                        <td class="py-1"><strong>Delivery Cost:</strong></td>
-                        <td class="py-1 pl-4">LKR <span id="invDelivery">0.00</span></td>
-                      </tr>
-                      <tr class="text-sm font-bold text-amber-950 border-t">
-                        <td class="pt-2">Grand Total:</td>
-                        <td class="pt-2 pl-4">LKR <span id="invGrandTotal">0.00</span></td>
-                      </tr>
-                    </table>
-                  </div>
-
-                  <p class="text-center text-xs text-gray-400 mt-6 pt-4 border-t">Thank you for shopping with The Saree Embassy!</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Courier Delivery Label Section -->
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 overflow-x-auto">
-              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-                <h3 class="font-semibold text-lg text-amber-900">2. Courier Delivery Label</h3>
-                <div class="flex space-x-2 w-full sm:w-auto">
-                  <button onclick="downloadLabelPDF()" class="flex-1 sm:flex-none bg-amber-800 text-white px-3 py-1.5 rounded text-xs hover:bg-amber-900">Download Label PDF</button>
-                  <button onclick="shareLabelWhatsApp()" class="flex-1 sm:flex-none bg-emerald-600 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-700">Share Label via WA</button>
-                </div>
-              </div>
-
-              <div class="flex justify-start bg-[#fffbeb] p-2 sm:p-4 rounded-xl border overflow-x-auto">
-                <div id="deliveryLabelCard" class="delivery-label-canvas border-2 border-amber-900 p-4 sm:p-6 rounded bg-white text-gray-800 space-y-4 shadow-md shrink-0">
-                  
-                  <!-- Header -->
-                  <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-start sm:items-center gap-2">
-                    <div>
-                      <h3 class="text-lg sm:text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
-                      <p class="text-xs text-gray-600 leading-tight">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
-                      <p class="text-xs text-gray-600">WhatsApp: 0702394119</p>
-                    </div>
-                    <div class="shrink-0">
-                      <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase" id="lblPayBadge">COD</span>
-                    </div>
-                  </div>
-
-                  <!-- Delivery & COD Sticker Grid -->
-                  <div class="flex flex-row gap-4">
-                    <!-- Delivery Recipient Info -->
-                    <div class="w-7/12 space-y-2">
-                      <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wider">DELIVER TO:</p>
-                      <h2 class="text-base sm:text-lg font-bold text-gray-900 leading-snug" id="lblCustName">CUSTOMER NAME</h2>
-                      <p class="text-xs text-gray-700 whitespace-pre-line leading-relaxed" id="lblAddress">Delivery Address Line 1, Line 2, City</p>
-                      <div class="pt-2 flex flex-col gap-1 text-xs">
-                        <p><strong>Primary Phone:</strong> <span id="lblPhone1">07X XXXXXXX</span></p>
-                        <p><strong>Secondary Phone:</strong> <span id="lblPhone2">07X XXXXXXX</span></p>
-                        <p class="mt-1"><strong>Order Ref:</strong> <span id="lblInvNo">INV-0000</span></p>
-                      </div>
-                    </div>
-
-                    <!-- COD Sticker Area Box -->
-                    <div class="w-5/12 flex items-center justify-center">
-                      <div class="cod-sticker-area">
-                        <p class="text-xs text-amber-900 font-bold leading-tight">
-                          PLACE COD STICKER HERE<br>
-                          <span class="text-[10px] text-amber-700 font-normal">(1.5" × 3" Box)</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Footer -->
-                  <div class="border-t-2 border-dashed border-gray-300 pt-3 flex flex-row justify-between items-center gap-3 text-xs">
-                    <div>
-                      <p class="text-gray-500">Please verify details before handover to courier.</p>
-                    </div>
-                    <div class="text-right bg-[#fffbeb] px-4 py-2 rounded border border-amber-200">
-                      <p class="text-gray-600 font-bold text-[11px]">COLLECT CASH (COD):</p>
-                      <p class="text-lg font-extrabold text-amber-950">LKR <span id="lblCodAmt">0.00</span></p>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 2: Inventory -->
-      <section id="tab-inventory" class="tab-content hidden">
-        <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Add Saree & Pricing</h2>
-        <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 max-w-lg">
-          <form onsubmit="alert('Item Added!'); event.preventDefault();" class="space-y-4">
-            <input type="text" placeholder="Saree Name / Type" class="w-full border p-3 rounded text-base" required>
-            <input type="text" placeholder="Fabric (e.g. Kanjeevaram, Tussar)" class="w-full border p-3 rounded text-base" required>
-            <input type="number" placeholder="Original Price (LKR)" class="w-full border p-3 rounded text-base" required>
-            <input type="number" placeholder="Selling / Discounted Price (LKR)" class="w-full border p-3 rounded text-base" required>
-            <input type="number" placeholder="Stock Quantity" class="w-full border p-3 rounded text-base" required>
-            <button type="submit" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900">Add to Catalogue</button>
-          </form>
-        </div>
-      </section>
-
-      <!-- TAB 3: Analytics -->
-      <section id="tab-analytics" class="tab-content hidden">
-        <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 font-serif text-amber-950">Sales Performance</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="bg-white p-4 rounded-xl shadow-sm border border-amber-100">
-            <h3 class="font-semibold text-gray-700 mb-2">Monthly Revenue (LKR)</h3>
-            <div class="relative h-64"><canvas id="salesChart"></canvas></div>
-          </div>
-          <div class="bg-white p-4 rounded-xl shadow-sm border border-amber-100">
-            <h3 class="font-semibold text-gray-700 mb-2">Top Selling Fabrics</h3>
-            <div class="relative h-64"><canvas id="fabricChart"></canvas></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 4: Customer Directory -->
-      <section id="tab-customers" class="tab-content hidden">
-        <div class="flex justify-between items-center mb-4 md:mb-6">
-          <h2 class="text-xl md:text-2xl font-bold font-serif text-amber-950">Customer Directory (Live Google Sheet)</h2>
-          <button onclick="renderCustomers()" class="text-xs bg-amber-100 text-amber-900 font-bold px-3 py-2 rounded hover:bg-amber-200">↻ Sync Now</button>
-        </div>
-        <div class="bg-white rounded-xl shadow-sm border border-amber-100 overflow-x-auto">
-          <table class="w-full text-left text-sm min-w-[900px]">
-            <thead class="bg-[#fef3c7] text-amber-900 border-b">
-              <tr>
-                <th class="p-3">Customer & Order</th>
-                <th class="p-3">Phones & Address</th>
-                <th class="p-3">Items & Qty</th>
-                <th class="p-3">Total / COD</th>
-                <th class="p-3">Payment Status</th>
-                <th class="p-3">Fulfillment</th>
-                <th class="p-3 text-center">Direct Download</th>
-              </tr>
-            </thead>
-            <tbody id="customerTableBody">
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-    </main>
-  </div>
-
-  <!-- Hidden PDF Render Container -->
-  <div id="pdfRenderContainer"></div>
-
-  <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzi9XxpdFjsvRRPwHl0RGY6wiizgJuyRk6r7jM7UgPeXDZoVQ_JD7rTFDZizwQcyzSX/exec';
-
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-      document.getElementById('tab-' + tabId).classList.remove('hidden');
-      if (tabId === 'customers') renderCustomers();
-    }
-
-    let itemImageData = {};
-
-    function previewImage(input) {
-      const row = input.closest('.item-row');
-      const rowIndex = Array.from(document.querySelectorAll('.item-row')).indexOf(row);
-      
-      if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          itemImageData[rowIndex] = e.target.result;
-        }
-        reader.readAsDataURL(input.files[0]);
+      try {
+        data = JSON.parse(textData);
+      } catch (parseError) {
+        throw new Error("Invalid response received from Google Sheets.");
       }
-    }
 
-    function loadLogo(input) {
-      if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          document.getElementById('brandLogo').src = e.target.result;
-          localStorage.setItem('tse_brand_logo', e.target.result);
-        };
-        reader.readAsDataURL(input.files[0]);
+      if (!Array.isArray(data) || data.length === 0) {
+        custTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">No orders found in Google Sheet.</td></tr>`;
+        return;
       }
-    }
 
-    function addItemRow() {
-      const container = document.getElementById('itemsContainer');
-      const row = document.createElement('div');
-      row.className = 'item-row bg-[#fffbeb] p-3 rounded border border-amber-100 space-y-2 relative';
-      row.innerHTML = `
-        <button type="button" onclick="this.parentElement.remove()" class="absolute top-1 right-2 text-xs text-red-600 font-bold">✕ Remove</button>
-        <input type="text" placeholder="Saree Type / Design Name" class="saree-name w-full border p-2 rounded text-base" required>
-        <div class="space-y-1">
-          <label class="text-xs font-semibold text-gray-600">Upload Photo:</label>
-          <input type="file" accept="image/*" class="saree-photo w-full text-xs border p-1 rounded bg-white" onchange="previewImage(this)">
-        </div>
-        <div class="grid grid-cols-3 gap-2">
-          <input type="number" placeholder="Original Price" class="saree-orig-price w-full border p-2 rounded text-base" required>
-          <input type="number" placeholder="Discount Price" class="saree-disc-price w-full border p-2 rounded text-base" required>
-          <input type="number" placeholder="Qty" value="1" min="1" class="saree-qty w-full border p-2 rounded text-base" required>
-        </div>
-      `;
-      container.appendChild(row);
-    }
-
-    function createNewOrder() {
-      document.getElementById('orderForm').reset();
-      itemImageData = {};
-      const container = document.getElementById('itemsContainer');
-      container.innerHTML = `
-        <div class="item-row bg-[#fffbeb] p-3 rounded border border-amber-100 space-y-2 relative">
-          <input type="text" placeholder="Saree Type / Design Name" class="saree-name w-full border p-2 rounded text-base" required>
-          <div class="space-y-1">
-            <label class="text-xs font-semibold text-gray-600">Upload Photo:</label>
-            <input type="file" accept="image/*" class="saree-photo w-full text-xs border p-1 rounded bg-white" onchange="previewImage(this)">
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <input type="number" placeholder="Original Price" class="saree-orig-price w-full border p-2 rounded text-base" required>
-            <input type="number" placeholder="Discount Price" class="saree-disc-price w-full border p-2 rounded text-base" required>
-            <input type="number" placeholder="Qty" value="1" min="1" class="saree-qty w-full border p-2 rounded text-base" required>
-          </div>
-        </div>
-      `;
-      document.getElementById('invCustomer').innerText = '---';
-      document.getElementById('invPhone1').innerText = '---';
-      document.getElementById('invPhone2').innerText = '---';
-      document.getElementById('invAddress').innerText = '---';
-      document.getElementById('invDate').innerText = '---';
-      document.getElementById('invNo').innerText = 'INV-001';
-      document.getElementById('invSubtotal').innerText = '0.00';
-      document.getElementById('invDiscount').innerText = '0.00';
-      document.getElementById('invDelivery').innerText = '0.00';
-      document.getElementById('invGrandTotal').innerText = '0.00';
-      document.getElementById('invTableBody').innerHTML = `
-        <tr class="border-b">
-          <td colspan="5" class="p-4 text-center text-gray-400">Add details & click Generate Invoice</td>
-        </tr>
-      `;
-      updateLabelPreview();
-    }
-
-    async function generateInvoice(e) {
-      e.preventDefault();
-      const btn = document.getElementById('saveBtn');
-      btn.innerText = 'Saving Order...';
-      btn.disabled = true;
-
-      const name = document.getElementById('custName').value;
-      const phone1 = document.getElementById('custPhone1').value;
-      const phone2 = document.getElementById('custPhone2').value || 'N/A';
-      const address = document.getElementById('custAddress').value;
-      const deliveryCost = parseFloat(document.getElementById('deliveryCostInput').value) || 0;
-      const codAmount = parseFloat(document.getElementById('codAmountInput').value) || 0;
-
-      const invNo = 'INV-' + Math.floor(1000 + Math.random() * 9000);
-      const dateStr = new Date().toLocaleDateString();
-
-      document.getElementById('invCustomer').innerText = name;
-      document.getElementById('invPhone1').innerText = phone1;
-      document.getElementById('invPhone2').innerText = phone2;
-      document.getElementById('invAddress').innerText = address;
-      document.getElementById('invDate').innerText = dateStr;
-      document.getElementById('invNo').innerText = invNo;
-
-      const rows = document.querySelectorAll('.item-row');
-      const tbody = document.getElementById('invTableBody');
-      tbody.innerHTML = '';
-
-      let grandSubtotal = 0;
-      let grandTotal = 0;
-      let itemsSummaryArr = [];
-      let itemsListArray = [];
-
-      rows.forEach((row, index) => {
-        const item = row.querySelector('.saree-name').value;
-        const origPrice = parseFloat(row.querySelector('.saree-orig-price').value) || 0;
-        const discPrice = parseFloat(row.querySelector('.saree-disc-price').value) || 0;
-        const qty = parseInt(row.querySelector('.saree-qty').value) || 1;
-
-        const lineTotal = discPrice * qty;
-        grandSubtotal += (origPrice * qty);
-        grandTotal += lineTotal;
-
-        itemsSummaryArr.push(`${item} (x${qty})`);
-
-        const imgSrc = itemImageData[index] || '';
-        
-        itemsListArray.push({
-          name: item,
-          origPrice: origPrice,
-          discPrice: discPrice,
-          qty: qty,
-          imgSrc: imgSrc
-        });
-
-        const photoHtml = imgSrc ? `<br><img src="${imgSrc}" class="saree-img-box" alt="Saree Photo">` : '';
-
-        tbody.innerHTML += `
-          <tr class="border-b">
-            <td class="p-3 align-top"><span class="font-medium text-sm text-gray-900">${item}</span>${photoHtml}</td>
-            <td class="p-3 text-gray-500 line-through align-top">LKR ${origPrice.toLocaleString()}</td>
-            <td class="p-3 align-top">LKR ${discPrice.toLocaleString()}</td>
-            <td class="p-3 text-center align-top">${qty}</td>
-            <td class="p-3 text-right font-medium align-top">LKR ${lineTotal.toLocaleString()}</td>
-          </tr>
+      custTbody.innerHTML = "";
+      data.forEach(item => {
+        const row = document.createElement("tr");
+        row.className = "border-b border-amber-100 hover:bg-amber-50/50 text-amber-900";
+        row.innerHTML = `
+          <td class="p-3 font-medium">${item.invNo || ''}</td>
+          <td class="p-3">${item.date || ''}</td>
+          <td class="p-3 font-medium">${item.name || ''}</td>
+          <td class="p-3 text-xs whitespace-pre-line">${item.phone1 || ''}${item.phone2 ? '\n' + item.phone2 : ''}\n${item.address || ''}</td>
+          <td class="p-3 text-xs">${item.itemsSummary || ''}</td>
+          <td class="p-3 font-bold text-emerald-800">LKR ${(item.grandTotal || 0).toLocaleString()}</td>
+          <td class="p-3">
+            <span class="px-2 py-1 rounded text-xs font-semibold ${item.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+              ${item.paymentStatus || 'Pending'}
+            </span>
+          </td>
         `;
+        custTbody.appendChild(row);
       });
 
-      const totalDiscount = grandSubtotal - grandTotal;
-      const finalGrandTotal = grandTotal + deliveryCost;
-
-      document.getElementById('invSubtotal').innerText = grandSubtotal.toLocaleString();
-      document.getElementById('invDiscount').innerText = totalDiscount.toLocaleString();
-      document.getElementById('invDelivery').innerText = deliveryCost.toLocaleString();
-      document.getElementById('invGrandTotal').innerText = finalGrandTotal.toLocaleString();
-
-      updateLabelPreview(name, phone1, phone2, address, invNo, codAmount || finalGrandTotal);
-
-      const payload = {
-        action: "addOrder",
-        invNo: invNo,
-        date: dateStr,
-        name: name,
-        phone1: phone1,
-        phone2: phone2,
-        address: address,
-        itemsSummary: itemsSummaryArr.join(', '),
-        itemsJson: JSON.stringify(itemsListArray),
-        deliveryCost: deliveryCost,
-        grandTotal: finalGrandTotal,
-        codTracking: '',
-        paymentStatus: 'Pending',
-        status: 'Processing'
-      };
-
-      try {
-        await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        alert('Order generated & saved live to Google Sheets!');
-      } catch (err) {
-        console.error('Error saving:', err);
-      } finally {
-        btn.innerText = 'Generate Invoice & Label';
-        btn.disabled = false;
-      }
+    } catch (err) {
+      console.error("Fetch Error:", err);
+      custTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500 font-semibold">Failed to load Google Sheets data. Please check your network or deployment permissions.</td></tr>`;
     }
+  }
 
-    function updateLabelPreview(name, phone1, phone2, address, invNo, codAmount) {
-      document.getElementById('lblCustName').innerText = name || document.getElementById('custName').value || 'CUSTOMER NAME';
-      document.getElementById('lblPhone1').innerText = phone1 || document.getElementById('custPhone1').value || '07X XXXXXXX';
-      document.getElementById('lblPhone2').innerText = phone2 || document.getElementById('custPhone2').value || '07X XXXXXXX';
-      document.getElementById('lblAddress').innerText = address || document.getElementById('custAddress').value || 'Delivery Address Line 1, Line 2, City';
-      document.getElementById('lblInvNo').innerText = invNo || document.getElementById('invNo').innerText || 'INV-0000';
+  // Save new order / invoice to Google Sheets
+  async function saveInvoiceToSheet(payload) {
+    try {
+      payload.action = "addOrder";
       
-      const amt = codAmount !== undefined ? codAmount : (parseFloat(document.getElementById('codAmountInput').value) || 0);
-      document.getElementById('lblCodAmt').innerText = amt.toLocaleString();
-    }
-
-    async function generatePdfBlobFromElement(element) {
-      const { jsPDF } = window.jspdf;
-      
-      const canvas = await html2canvas(element, { 
-        scale: 2, 
-        useCORS: true, 
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        windowWidth: 800
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'cors',
+        redirect: 'follow', // CRITICAL: Follows redirects on POST
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Prevents CORS preflight issues
+        body: JSON.stringify(payload)
       });
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      const calculatedHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, Math.min(calculatedHeight, pdfHeight));
-      return { pdf, blob: pdf.output('blob') };
+      console.log("Invoice successfully saved to Google Sheets");
+      renderCustomers(); // Refresh the directory
+    } catch (err) {
+      console.error("Error saving invoice to sheet:", err);
+      alert("Failed to save order to Google Sheets. Check browser console for details.");
     }
+  }
 
-    async function generateLabelPdfBlobFromElement(element) {
-      const { jsPDF } = window.jspdf;
-      
-      const canvas = await html2canvas(element, { 
-        scale: 2, 
-        useCORS: true, 
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        windowWidth: 650
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a5');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 5, pdfWidth, pdfHeight);
-      return { pdf, blob: pdf.output('blob') };
-    }
-
-    async function downloadPDF() {
-      const invNo = document.getElementById('invNo').innerText || 'Invoice';
-      const element = document.getElementById('invoiceCard');
-      const { pdf } = await generatePdfBlobFromElement(element);
-      pdf.save(`Saree_Embassy_Invoice_${invNo}.pdf`);
-    }
-
-    async function downloadLabelPDF() {
-      const invNo = document.getElementById('lblInvNo').innerText || 'Label';
-      const element = document.getElementById('deliveryLabelCard');
-      const { pdf } = await generateLabelPdfBlobFromElement(element);
-      pdf.save(`Delivery_Label_${invNo}.pdf`);
-    }
-
-    async function shareWhatsAppPDF() {
-      const name = document.getElementById('invCustomer') ? document.getElementById('invCustomer').innerText : '';
-      let phone = document.getElementById('custPhone1').value.replace(/[^0-9]/g, '');
-      const invNo = document.getElementById('invNo').innerText;
-      const grandTotal = document.getElementById('invGrandTotal').innerText;
-
-      if (!phone) {
-        alert("Please enter a valid phone number first.");
-        return;
-      }
-
-      if (phone.startsWith('0')) {
-        phone = '94' + phone.substring(1);
-      }
-
-      try {
-        const element = document.getElementById('invoiceCard');
-        const { blob } = await generatePdfBlobFromElement(element);
-        const file = new File([blob], `${invNo}_Saree_Embassy.pdf`, { type: 'application/pdf' });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `Invoice ${invNo}`,
-            text: `Hello ${name}, here is your invoice from The Saree Embassy!`
-          });
-        } else {
-          const message = `*THE SAREE EMBASSY*%0A` +
-                          `Hello ${name}, thank you for your order!%0A%0A` +
-                          `*Invoice No:* ${invNo}%0A` +
-                          `*Total Amount:* LKR ${grandTotal}%0A%0A` +
-                          `Address: NO. 420/5A/01, Kadawatha Road, Ganemulla%0A` +
-                          `WhatsApp: 0702394119`;
-          window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
-        }
-      } catch (err) {
-        console.error('Sharing failed:', err);
-      }
-    }
-
-    async function shareLabelWhatsApp() {
-      let phone = document.getElementById('custPhone1').value.replace(/[^0-9]/g, '');
-      const name = document.getElementById('lblCustName').innerText;
-      const invNo = document.getElementById('lblInvNo').innerText;
-
-      if (!phone) {
-        alert("Please enter a valid recipient phone number first.");
-        return;
-      }
-
-      if (phone.startsWith('0')) {
-        phone = '94' + phone.substring(1);
-      }
-
-      try {
-        const element = document.getElementById('deliveryLabelCard');
-        const { blob } = await generateLabelPdfBlobFromElement(element);
-        const file = new File([blob], `Delivery_Label_${invNo}.pdf`, { type: 'application/pdf' });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `Delivery Label ${invNo}`,
-            text: `Delivery Label for ${name} (${invNo}) - The Saree Embassy`
-          });
-        } else {
-          const message = `*THE SAREE EMBASSY - DELIVERY LABEL*%0A` +
-                          `Recipient: ${name}%0A` +
-                          `Order No: ${invNo}%0A` +
-                          `Phone: ${phone}`;
-          window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
-        }
-      } catch (err) {
-        console.error('Sharing label failed:', err);
-      }
-    }
-
-    async function renderCustomers() {
-      const custTbody = document.getElementById('customerTableBody');
-      custTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">Loading live data from Google Sheets...</td></tr>`;
-
-      try {
-        const res = await fetch(GOOGLE_SCRIPT_URL);
-        const textData = await res.text();
-        const data = JSON.parse(textData);
-        
-        if (!data || data.length === 0) {
-          custTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">No orders found in Google Sheet.</td></tr>`;
-          return;
-        }
-
-        custTbody.innerHTML = data.map(cust => {
-          const safeName = (cust.name || '').replace(/'/g, "\\'");
-          const safePhone1 = (cust.phone1 || '').replace(/'/g, "\\'");
-          const safePhone2 = (cust.phone2 || '').replace(/'/g, "\\'");
-          const safeAddress = (cust.address || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
-          const safeInvNo = (cust.invNo || '').replace(/'/g, "\\'");
-          const safeSummary = (cust.itemsSummary || '').replace(/'/g, "\\'");
-          const safeItemsJson = cust.itemsJson ? encodeURIComponent(cust.itemsJson) : '';
-          const deliveryCost = cust.deliveryCost || 0;
-          const grandTotal = cust.grandTotal || 0;
-          const orderDate = cust.date || new Date().toLocaleDateString();
-
-          return `
-          <tr class="border-b hover:bg-[#fffbeb]">
-            <td class="p-3 font-medium">
-              ${cust.name}<br>
-              <span class="text-xs text-amber-800 font-bold">${cust.invNo}</span>
-            </td>
-            <td class="p-3">
-              <span class="text-xs font-semibold">${cust.phone1}</span><br>
-              <span class="text-gray-500 text-xs">${cust.address}</span>
-            </td>
-            <td class="p-3 text-xs text-gray-700 max-w-[180px]">
-              ${cust.itemsSummary || 'N/A'}
-            </td>
-            <td class="p-3 text-xs font-bold text-amber-950">
-              LKR ${parseFloat(cust.grandTotal || 0).toLocaleString()}
-            </td>
-            <td class="p-3">
-              <select onchange="updateOrderField('${cust.invNo}', 'paymentStatus', this.value)"
-                      class="text-xs border rounded p-1 font-semibold ${cust.paymentStatus === 'Collected' ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-amber-100 text-amber-900 border-amber-300'}">
-                <option value="Pending" ${cust.paymentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
-                <option value="Collected" ${cust.paymentStatus === 'Collected' ? 'selected' : ''}>Collected</option>
-              </select>
-            </td>
-            <td class="p-3">
-              <select onchange="updateOrderField('${cust.invNo}', 'status', this.value)"
-                      class="text-xs border rounded p-1 bg-white">
-                <option value="Processing" ${cust.status === 'Processing' ? 'selected' : ''}>Processing</option>
-                <option value="Shipped" ${cust.status === 'Shipped' ? 'selected' : ''}>Shipped</option>
-                <option value="Delivered" ${cust.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
-                <option value="Cancelled" ${cust.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
-              </select>
-            </td>
-            <td class="p-3 text-center">
-              <div class="flex items-center justify-center space-x-1">
-                <button onclick="directDownloadCustomerInvoice('${safeName}', '${safePhone1}', '${safePhone2}', '${safeAddress}', '${safeInvNo}', '${grandTotal}', '${deliveryCost}', '${safeSummary}', '${safeItemsJson}', '${orderDate}')"
-                        class="text-[11px] bg-amber-800 text-white px-2 py-1 rounded hover:bg-amber-900">
-                  Invoice PDF
-                </button>
-                <button onclick="directDownloadCustomerLabel('${safeName}', '${safePhone1}', '${safePhone2}', '${safeAddress}', '${safeInvNo}', '${grandTotal}')"
-                        class="text-[11px] bg-amber-900 text-white px-2 py-1 rounded hover:bg-amber-950">
-                  Label PDF
-                </button>
-              </div>
-            </td>
-          </tr>
-        `}).reverse().join('');
-      } catch (err) {
-        console.error('Fetch error:', err);
-        custTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">Failed to load Google Sheets data. Please confirm script deployment.</td></tr>`;
-      }
-    }
-
-    async function updateOrderField(invNo, field, value) {
+  // Update payment or fulfillment status in Google Sheets
+  async function updateOrderStatus(invNo, field, value) {
+    try {
       const payload = {
         action: "updateOrder",
         invNo: invNo,
@@ -817,228 +86,29 @@
         value: value
       };
 
-      try {
-        await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      } catch (err) {
-        console.error('Failed live update:', err);
-      }
-    }
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'cors',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
 
-    /* DIRECT PDF DOWNLOADS FROM CUSTOMER DIRECTORY (WITH ITEM BREAKDOWN) */
-    async function directDownloadCustomerInvoice(name, phone1, phone2, address, invNo, grandTotal, deliveryCost, itemsSummary, encodedItemsJson, orderDate) {
-      const renderContainer = document.getElementById('pdfRenderContainer');
-      const logoSrc = localStorage.getItem('tse_brand_logo') || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>";
-
-      let items = [];
-      if (encodedItemsJson) {
-        try {
-          items = JSON.parse(decodeURIComponent(encodedItemsJson));
-        } catch(e) {
-          console.warn('Failed to parse itemsJson, using fallback:', e);
-        }
-      }
-
-      let tableRowsHtml = '';
-      let calculatedSubtotal = 0;
-      let calculatedDiscount = 0;
-      let delCost = parseFloat(deliveryCost) || 0;
-      let finalTotal = parseFloat(grandTotal) || 0;
-
-      if (items && items.length > 0) {
-        items.forEach(item => {
-          const itemOrig = parseFloat(item.origPrice) || parseFloat(item.discPrice) || 0;
-          const itemDisc = parseFloat(item.discPrice) || 0;
-          const itemQty = parseInt(item.qty) || 1;
-          const lineTotal = itemDisc * itemQty;
-
-          calculatedSubtotal += (itemOrig * itemQty);
-          calculatedDiscount += ((itemOrig - itemDisc) * itemQty);
-
-          const photoHtml = item.imgSrc ? `<br><img src="${item.imgSrc}" class="saree-img-box" alt="Saree Photo">` : '';
-
-          tableRowsHtml += `
-            <tr class="border-b">
-              <td class="p-3 align-top"><span class="font-medium text-sm text-gray-900">${item.name}</span>${photoHtml}</td>
-              <td class="p-3 text-gray-500 line-through align-top">LKR ${itemOrig.toLocaleString()}</td>
-              <td class="p-3 align-top">LKR ${itemDisc.toLocaleString()}</td>
-              <td class="p-3 text-center align-top">${itemQty}</td>
-              <td class="p-3 text-right font-medium align-top">LKR ${lineTotal.toLocaleString()}</td>
-            </tr>
-          `;
-        });
-      } else {
-        // Fallback for older orders missing structured JSON
-        calculatedSubtotal = finalTotal - delCost;
-        tableRowsHtml = `
-          <tr class="border-b">
-            <td class="p-3 align-top"><span class="font-medium text-sm text-gray-900">${itemsSummary || 'Saree Order'}</span></td>
-            <td class="p-3 text-gray-500 line-through align-top">-</td>
-            <td class="p-3 align-top">-</td>
-            <td class="p-3 text-center align-top">1</td>
-            <td class="p-3 text-right font-medium align-top">LKR ${calculatedSubtotal.toLocaleString()}</td>
-          </tr>
-        `;
-      }
-
-      renderContainer.innerHTML = `
-        <div id="tempPdfCard" class="pdf-render-canvas border p-8 rounded bg-white text-gray-800 space-y-6">
-          <div class="border-b pb-4 flex justify-between items-start gap-4">
-            <div class="flex items-start space-x-3 w-2/3">
-              <img src="${logoSrc}" class="brand-logo-box border border-amber-200 rounded p-1 bg-[#fffbeb]">
-              <div>
-                <h4 class="text-xl font-bold font-serif text-amber-900 tracking-wide leading-tight">THE SAREE EMBASSY</h4>
-                <p class="text-xs font-semibold text-amber-800 mt-0.5">Luxury Sarees</p>
-                <p class="text-xs text-gray-600 mt-1 leading-tight">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
-                <p class="text-xs text-gray-600 mt-0.5">WhatsApp: <strong>0702394119</strong></p>
-              </div>
-            </div>
-            <div class="text-right w-1/3 shrink-0">
-              <p class="text-sm font-bold text-amber-950">Invoice #: <span>${invNo}</span></p>
-              <p class="text-xs text-gray-600 mt-1">Date: <span>${orderDate}</span></p>
-            </div>
-          </div>
-
-          <table class="w-full bg-[#fffbeb] p-4 rounded text-xs border border-amber-100">
-            <tr>
-              <td class="w-1/2 align-top p-2">
-                <p><strong>Customer:</strong> ${name}</p>
-                <p class="mt-1"><strong>Phone 1:</strong> ${phone1}</p>
-                <p class="mt-1"><strong>Phone 2:</strong> ${phone2 || 'N/A'}</p>
-              </td>
-              <td class="w-1/2 align-top p-2">
-                <p><strong>Delivery Address:</strong></p>
-                <p class="text-gray-600 mt-1">${address}</p>
-              </td>
-            </tr>
-          </table>
-
-          <table class="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr class="border-b bg-[#fef3c7] text-amber-900">
-                <th class="p-3 w-2/5">Item Details</th>
-                <th class="p-3">Original Price</th>
-                <th class="p-3">Discount Price</th>
-                <th class="p-3 text-center">Qty</th>
-                <th class="p-3 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRowsHtml}
-            </tbody>
-          </table>
-
-          <div class="flex justify-end pt-2">
-            <table class="w-1/2 text-right text-xs space-y-1">
-              <tr>
-                <td class="py-1"><strong>Subtotal (Original):</strong></td>
-                <td class="py-1 pl-4">LKR ${calculatedSubtotal.toLocaleString()}</td>
-              </tr>
-              <tr class="text-emerald-700">
-                <td class="py-1"><strong>Total Discount Saved:</strong></td>
-                <td class="py-1 pl-4">LKR ${calculatedDiscount.toLocaleString()}</td>
-              </tr>
-              <tr>
-                <td class="py-1"><strong>Delivery Cost:</strong></td>
-                <td class="py-1 pl-4">LKR ${delCost.toLocaleString()}</td>
-              </tr>
-              <tr class="text-sm font-bold text-amber-950 border-t">
-                <td class="pt-2">Grand Total:</td>
-                <td class="pt-2 pl-4">LKR ${finalTotal.toLocaleString()}</td>
-              </tr>
-            </table>
-          </div>
-
-          <p class="text-center text-xs text-gray-400 mt-6 pt-4 border-t">Thank you for shopping with The Saree Embassy!</p>
-        </div>
-      `;
-
-      const element = document.getElementById('tempPdfCard');
-      const { pdf } = await generatePdfBlobFromElement(element);
-      pdf.save(`Invoice_${invNo}.pdf`);
-      renderContainer.innerHTML = '';
-    }
-
-    async function directDownloadCustomerLabel(name, phone1, phone2, address, invNo, grandTotal) {
-      const renderContainer = document.getElementById('pdfRenderContainer');
-
-      renderContainer.innerHTML = `
-        <div id="tempLabelCard" class="delivery-label-canvas border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4">
-          <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-center gap-2">
-            <div>
-              <h3 class="text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
-              <p class="text-xs text-gray-600 leading-tight">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
-              <p class="text-xs text-gray-600">WhatsApp: 0702394119</p>
-            </div>
-            <div>
-              <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase">COD</span>
-            </div>
-          </div>
-
-          <div class="flex flex-row gap-4">
-            <div class="w-7/12 space-y-2">
-              <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wider">DELIVER TO:</p>
-              <h2 class="text-lg font-bold text-gray-900 leading-snug">${name}</h2>
-              <p class="text-xs text-gray-700 whitespace-pre-line leading-relaxed">${address}</p>
-              <div class="pt-2 flex flex-col gap-1 text-xs">
-                <p><strong>Primary Phone:</strong> ${phone1}</p>
-                <p><strong>Secondary Phone:</strong> ${phone2 || 'N/A'}</p>
-                <p class="mt-1"><strong>Order Ref:</strong> ${invNo}</p>
-              </div>
-            </div>
-
-            <div class="w-5/12 flex items-center justify-center">
-              <div class="cod-sticker-area">
-                <p class="text-xs text-amber-900 font-bold leading-tight">
-                  PLACE COD STICKER HERE<br>
-                  <span class="text-[10px] text-amber-700 font-normal">(1.5" × 3" Box)</span>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div class="border-t-2 border-dashed border-gray-300 pt-3 flex flex-row justify-between items-center gap-3 text-xs">
-            <div>
-              <p class="text-gray-500">Please verify details before handover to courier.</p>
-            </div>
-            <div class="text-right bg-[#fffbeb] px-4 py-2 rounded border border-amber-200">
-              <p class="text-gray-600 font-bold text-[11px]">COLLECT CASH (COD):</p>
-              <p class="text-lg font-extrabold text-amber-950">LKR ${parseFloat(grandTotal || 0).toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-      `;
-
-      const element = document.getElementById('tempLabelCard');
-      const { pdf } = await generateLabelPdfBlobFromElement(element);
-      pdf.save(`Delivery_Label_${invNo}.pdf`);
-      renderContainer.innerHTML = '';
-    }
-
-    window.onload = function() {
-      const savedLogo = localStorage.getItem('tse_brand_logo');
-      if (savedLogo) {
-        document.getElementById('brandLogo').src = savedLogo;
-      }
-
+      console.log(`Updated ${field} for ${invNo}`);
       renderCustomers();
+    } catch (err) {
+      console.error("Error updating order status:", err);
+    }
+  }
 
-      new Chart(document.getElementById('salesChart'), {
-        type: 'line',
-        data: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], datasets: [{ label: 'Sales (LKR)', data: [450000, 620000, 890000, 750000, 910000, 1200000], borderColor: '#78350f', fill: false }] },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-
-      new Chart(document.getElementById('fabricChart'), {
-        type: 'doughnut',
-        data: { labels: ['Kanjeevaram', 'Banarasi', 'Chanderi', 'Tussar'], datasets: [{ data: [40, 30, 20, 10], backgroundColor: ['#78350f', '#b45309', '#d97706', '#f59e0b'] }] },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    };
-  </script>
-</body>
-</html>
+  // Auto-load customers on page load
+  document.addEventListener("DOMContentLoaded", () => {
+    renderCustomers();
+    
+    // Attach event to Sync Now button if it exists
+    const syncBtn = document.getElementById("syncNowBtn");
+    if (syncBtn) {
+      syncBtn.addEventListener("click", renderCustomers);
+    }
+  });
+</script>
