@@ -12,7 +12,7 @@
     .brand-logo-box { width: 90px; height: 90px; object-fit: cover; border-radius: 6px; }
     .saree-img-box { width: 70px; height: 100px; object-fit: cover; border: 1px solid #e5e7eb; border-radius: 4px; margin-top: 6px; }
     .pdf-render-canvas { width: 800px; background-color: #ffffff !important; }
-    .delivery-label-canvas { width: 650px; background-color: #ffffff !important; }
+    .delivery-label-canvas { width: 680px; background-color: #ffffff !important; }
     .cod-sticker-area { width: 100%; min-height: 110px; border: 2px dashed #92400e; border-radius: 6px; display: flex; align-items: center; justify-content: center; text-align: center; background-color: #fffbeb; padding: 8px; }
     .invoice-preview-wrapper { width: 100%; overflow-x: auto; display: flex; justify-content: flex-start; }
     
@@ -191,11 +191,25 @@
                     </div>
                   </div>
 
+                  <!-- Collect Cash Detailed Breakdown -->
                   <div class="border-t-2 border-dashed border-gray-300 pt-3 flex justify-between items-center text-xs">
-                    <p class="text-gray-500">Please verify details before handover to courier.</p>
-                    <div class="text-right bg-[#fffbeb] px-4 py-2 rounded border border-amber-200">
-                      <p class="text-gray-600 font-bold text-[11px]">COLLECT CASH (COD):</p>
-                      <p class="text-lg font-extrabold text-amber-950">LKR <span id="lblCodAmt">0.00</span></p>
+                    <p class="text-gray-500 text-[11px]">Please verify details before handover to courier.</p>
+                    <div class="text-right bg-[#fffbeb] p-3 rounded border border-amber-300 min-w-[210px]">
+                      <p class="text-amber-950 font-bold text-[11px] border-b border-amber-200 pb-1 mb-1 uppercase tracking-wide">Collect Cash Breakdown</p>
+                      <table class="w-full text-xs text-right">
+                        <tr>
+                          <td class="text-gray-600 font-medium">Total:</td>
+                          <td class="pl-2 font-semibold">LKR <span id="lblSubtotal">0.00</span></td>
+                        </tr>
+                        <tr>
+                          <td class="text-gray-600 font-medium">Delivery:</td>
+                          <td class="pl-2 font-semibold">LKR <span id="lblDelivery">0.00</span></td>
+                        </tr>
+                        <tr class="border-t border-amber-300 text-amber-950 font-extrabold text-sm">
+                          <td class="pt-1">Grand Total:</td>
+                          <td class="pt-1 pl-2 text-amber-900">LKR <span id="lblGrandTotal">0.00</span></td>
+                        </tr>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -320,7 +334,11 @@
     function loadLogo(input) {
       if (input.files && input.files[0]) {
         const reader = new FileReader();
-        reader.onload = function(e) { document.getElementById('brandLogo').src = e.target.result; };
+        reader.onload = function(e) {
+          const logoDataUrl = e.target.result;
+          document.getElementById('brandLogo').src = logoDataUrl;
+          localStorage.setItem('sareeEmbassyLogo', logoDataUrl);
+        };
         reader.readAsDataURL(input.files[0]);
       }
     }
@@ -359,31 +377,16 @@
       const phone2 = document.getElementById('custPhone2').value || 'N/A';
       const address = document.getElementById('custAddress').value;
       const deliveryCost = parseFloat(document.getElementById('deliveryCostInput').value) || 0;
-      const codAmount = parseFloat(document.getElementById('codAmountInput').value) || 0;
+      const manualCod = parseFloat(document.getElementById('codAmountInput').value) || 0;
 
       let invNum = document.getElementById('editingInvNo').value || getNextInvoiceNumber();
       const today = new Date().toLocaleDateString();
-
-      document.getElementById('invNo').innerText = invNum;
-      document.getElementById('invDate').innerText = today;
-      document.getElementById('invCustomer').innerText = name;
-      document.getElementById('invPhone1').innerText = phone1;
-      document.getElementById('invPhone2').innerText = phone2;
-      document.getElementById('invAddress').innerText = address;
-
-      document.getElementById('lblCustName').innerText = name;
-      document.getElementById('lblAddress').innerText = address;
-      document.getElementById('lblPhone1').innerText = phone1;
-      document.getElementById('lblPhone2').innerText = phone2;
-      document.getElementById('lblInvNo').innerText = invNum;
-      document.getElementById('lblCodAmt').innerText = codAmount.toFixed(2);
-      document.getElementById('lblPayBadge').innerText = "COD";
 
       const rows = document.querySelectorAll('.item-row');
       const tbody = document.getElementById('invTableBody');
       tbody.innerHTML = '';
 
-      let subtotalOrig = 0, totalGrand = 0, photoBase64 = "";
+      let subtotalOrig = 0, itemsDiscountedTotal = 0, photoBase64 = "";
       let itemsSummaryText = [], rawItemsArr = [];
 
       rows.forEach(row => {
@@ -399,7 +402,7 @@
 
         const lineTotal = discPrice * qty;
         subtotalOrig += (origPrice * qty);
-        totalGrand += lineTotal;
+        itemsDiscountedTotal += lineTotal;
         itemsSummaryText.push(`${sareeName} x${qty}`);
 
         const tr = document.createElement('tr');
@@ -414,13 +417,34 @@
         tbody.appendChild(tr);
       });
 
-      const totalDiscount = subtotalOrig - totalGrand;
-      const finalGrandTotal = totalGrand + deliveryCost;
+      const totalDiscount = subtotalOrig - itemsDiscountedTotal;
+      const finalGrandTotal = itemsDiscountedTotal + deliveryCost;
+      const codAmount = manualCod > 0 ? manualCod : finalGrandTotal;
+
+      // Update Invoice Card
+      document.getElementById('invNo').innerText = invNum;
+      document.getElementById('invDate').innerText = today;
+      document.getElementById('invCustomer').innerText = name;
+      document.getElementById('invPhone1').innerText = phone1;
+      document.getElementById('invPhone2').innerText = phone2;
+      document.getElementById('invAddress').innerText = address;
 
       document.getElementById('invSubtotal').innerText = subtotalOrig.toFixed(2);
       document.getElementById('invDiscount').innerText = totalDiscount.toFixed(2);
       document.getElementById('invDelivery').innerText = deliveryCost.toFixed(2);
       document.getElementById('invGrandTotal').innerText = finalGrandTotal.toFixed(2);
+
+      // Update Delivery Label Breakdown
+      document.getElementById('lblCustName').innerText = name;
+      document.getElementById('lblAddress').innerText = address;
+      document.getElementById('lblPhone1').innerText = phone1;
+      document.getElementById('lblPhone2').innerText = phone2;
+      document.getElementById('lblInvNo').innerText = invNum;
+      document.getElementById('lblPayBadge').innerText = "COD";
+
+      document.getElementById('lblSubtotal').innerText = itemsDiscountedTotal.toFixed(2);
+      document.getElementById('lblDelivery').innerText = deliveryCost.toFixed(2);
+      document.getElementById('lblGrandTotal').innerText = finalGrandTotal.toFixed(2);
 
       saveInvoiceToSheet({
         action: document.getElementById('editingInvNo').value ? "updateOrder" : "addOrder",
@@ -428,7 +452,7 @@
         itemsSummary: itemsSummaryText.join(", "),
         photoBase64, subtotal: subtotalOrig, discount: totalDiscount,
         deliveryCost, grandTotal: finalGrandTotal, codAmount,
-        paymentStatus: codAmount > 0 ? "Pending" : "Completed",
+        paymentStatus: "Pending",
         rawItemsJson: JSON.stringify(rawItemsArr)
       });
     }
@@ -521,6 +545,8 @@
       const item = cachedSheetData.find(d => String(d.invNo) === String(invNo));
       if (!item) return;
 
+      const itemsTotal = (item.grandTotal || 0) - (item.deliveryCost || 0);
+
       const tempDiv = document.createElement('div');
       tempDiv.id = "tempLabelContainer";
       tempDiv.className = "delivery-label-canvas border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4 shadow-md";
@@ -550,10 +576,14 @@
           </div>
         </div>
         <div class="border-t-2 border-dashed border-gray-300 pt-3 flex justify-between items-center text-xs">
-          <p class="text-gray-500">Please verify details before handover to courier.</p>
-          <div class="text-right bg-[#fffbeb] px-4 py-2 rounded border border-amber-200">
-            <p class="text-gray-600 font-bold text-[11px]">COLLECT CASH (COD):</p>
-            <p class="text-lg font-extrabold text-amber-950">LKR ${(item.codAmount || 0).toFixed(2)}</p>
+          <p class="text-gray-500 text-[11px]">Please verify details before handover to courier.</p>
+          <div class="text-right bg-[#fffbeb] p-3 rounded border border-amber-300 min-w-[210px]">
+            <p class="text-amber-950 font-bold text-[11px] border-b border-amber-200 pb-1 mb-1 uppercase tracking-wide">Collect Cash Breakdown</p>
+            <table class="w-full text-xs text-right">
+              <tr><td class="text-gray-600 font-medium">Total:</td><td class="pl-2 font-semibold">LKR ${itemsTotal.toFixed(2)}</td></tr>
+              <tr><td class="text-gray-600 font-medium">Delivery:</td><td class="pl-2 font-semibold">LKR ${(item.deliveryCost || 0).toFixed(2)}</td></tr>
+              <tr class="border-t border-amber-300 text-amber-950 font-extrabold text-sm"><td class="pt-1">Grand Total:</td><td class="pt-1 pl-2 text-amber-900">LKR ${(item.grandTotal || 0).toFixed(2)}</td></tr>
+            </table>
           </div>
         </div>
       `;
@@ -628,8 +658,10 @@
       const invNo = document.getElementById('lblInvNo').innerText;
       const custName = document.getElementById('lblCustName').innerText;
       const address = document.getElementById('lblAddress').innerText;
-      const codAmt = document.getElementById('lblCodAmt').innerText;
-      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\nCollect COD: LKR ${codAmt}`;
+      const total = document.getElementById('lblSubtotal').innerText;
+      const del = document.getElementById('lblDelivery').innerText;
+      const grandTotal = document.getElementById('lblGrandTotal').innerText;
+      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\n\n*Cash Collection:* \nTotal: LKR ${total}\nDelivery: LKR ${del}\n*Grand Total: LKR ${grandTotal}*`;
       window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
 
@@ -725,6 +757,12 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      // Restore saved brand logo from localStorage on page refresh
+      const savedLogo = localStorage.getItem('sareeEmbassyLogo');
+      if (savedLogo) {
+        document.getElementById('brandLogo').src = savedLogo;
+      }
+
       createNewOrder();
       
       const salesCtx = document.getElementById('salesChart')?.getContext('2d');
