@@ -505,6 +505,7 @@
       let grandSubtotal = 0;
       let grandTotal = 0;
       let itemsSummaryArr = [];
+      let itemsListArray = [];
 
       rows.forEach((row, index) => {
         const item = row.querySelector('.saree-name').value;
@@ -518,7 +519,16 @@
 
         itemsSummaryArr.push(`${item} (x${qty})`);
 
-        const imgSrc = itemImageData[index];
+        const imgSrc = itemImageData[index] || '';
+        
+        itemsListArray.push({
+          name: item,
+          origPrice: origPrice,
+          discPrice: discPrice,
+          qty: qty,
+          imgSrc: imgSrc
+        });
+
         const photoHtml = imgSrc ? `<br><img src="${imgSrc}" class="saree-img-box" alt="Saree Photo">` : '';
 
         tbody.innerHTML += `
@@ -551,6 +561,8 @@
         phone2: phone2,
         address: address,
         itemsSummary: itemsSummaryArr.join(', '),
+        itemsJson: JSON.stringify(itemsListArray),
+        deliveryCost: deliveryCost,
         grandTotal: finalGrandTotal,
         codTracking: '',
         paymentStatus: 'Pending',
@@ -584,7 +596,6 @@
       document.getElementById('lblCodAmt').innerText = amt.toLocaleString();
     }
 
-    /* Fixed Clean PDF Generation without Alpha Distortion */
     async function generatePdfBlobFromElement(element) {
       const { jsPDF } = window.jspdf;
       
@@ -734,7 +745,19 @@
           return;
         }
 
-        custTbody.innerHTML = data.map(cust => `
+        custTbody.innerHTML = data.map(cust => {
+          const safeName = (cust.name || '').replace(/'/g, "\\'");
+          const safePhone1 = (cust.phone1 || '').replace(/'/g, "\\'");
+          const safePhone2 = (cust.phone2 || '').replace(/'/g, "\\'");
+          const safeAddress = (cust.address || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
+          const safeInvNo = (cust.invNo || '').replace(/'/g, "\\'");
+          const safeSummary = (cust.itemsSummary || '').replace(/'/g, "\\'");
+          const safeItemsJson = cust.itemsJson ? encodeURIComponent(cust.itemsJson) : '';
+          const deliveryCost = cust.deliveryCost || 0;
+          const grandTotal = cust.grandTotal || 0;
+          const orderDate = cust.date || new Date().toLocaleDateString();
+
+          return `
           <tr class="border-b hover:bg-[#fffbeb]">
             <td class="p-3 font-medium">
               ${cust.name}<br>
@@ -768,18 +791,18 @@
             </td>
             <td class="p-3 text-center">
               <div class="flex items-center justify-center space-x-1">
-                <button onclick="directDownloadCustomerInvoice('${cust.name}', '${cust.phone1}', '${cust.phone2 || ''}', '${cust.address.replace(/'/g, "\\'")}', '${cust.invNo}', '${cust.grandTotal}', '${(cust.itemsSummary || '').replace(/'/g, "\\'")}')"
+                <button onclick="directDownloadCustomerInvoice('${safeName}', '${safePhone1}', '${safePhone2}', '${safeAddress}', '${safeInvNo}', '${grandTotal}', '${deliveryCost}', '${safeSummary}', '${safeItemsJson}', '${orderDate}')"
                         class="text-[11px] bg-amber-800 text-white px-2 py-1 rounded hover:bg-amber-900">
                   Invoice PDF
                 </button>
-                <button onclick="directDownloadCustomerLabel('${cust.name}', '${cust.phone1}', '${cust.phone2 || ''}', '${cust.address.replace(/'/g, "\\'")}', '${cust.invNo}', '${cust.grandTotal}')"
+                <button onclick="directDownloadCustomerLabel('${safeName}', '${safePhone1}', '${safePhone2}', '${safeAddress}', '${safeInvNo}', '${grandTotal}')"
                         class="text-[11px] bg-amber-900 text-white px-2 py-1 rounded hover:bg-amber-950">
                   Label PDF
                 </button>
               </div>
             </td>
           </tr>
-        `).reverse().join('');
+        `}).reverse().join('');
       } catch (err) {
         console.error('Fetch error:', err);
         custTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">Failed to load Google Sheets data. Please confirm script deployment.</td></tr>`;
@@ -806,10 +829,61 @@
       }
     }
 
-    /* DIRECT PDF DOWNLOADS FROM CUSTOMER DIRECTORY */
-    async function directDownloadCustomerInvoice(name, phone1, phone2, address, invNo, grandTotal, itemsSummary) {
+    /* DIRECT PDF DOWNLOADS FROM CUSTOMER DIRECTORY (WITH ITEM BREAKDOWN) */
+    async function directDownloadCustomerInvoice(name, phone1, phone2, address, invNo, grandTotal, deliveryCost, itemsSummary, encodedItemsJson, orderDate) {
       const renderContainer = document.getElementById('pdfRenderContainer');
       const logoSrc = localStorage.getItem('tse_brand_logo') || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>";
+
+      let items = [];
+      if (encodedItemsJson) {
+        try {
+          items = JSON.parse(decodeURIComponent(encodedItemsJson));
+        } catch(e) {
+          console.warn('Failed to parse itemsJson, using fallback:', e);
+        }
+      }
+
+      let tableRowsHtml = '';
+      let calculatedSubtotal = 0;
+      let calculatedDiscount = 0;
+      let delCost = parseFloat(deliveryCost) || 0;
+      let finalTotal = parseFloat(grandTotal) || 0;
+
+      if (items && items.length > 0) {
+        items.forEach(item => {
+          const itemOrig = parseFloat(item.origPrice) || parseFloat(item.discPrice) || 0;
+          const itemDisc = parseFloat(item.discPrice) || 0;
+          const itemQty = parseInt(item.qty) || 1;
+          const lineTotal = itemDisc * itemQty;
+
+          calculatedSubtotal += (itemOrig * itemQty);
+          calculatedDiscount += ((itemOrig - itemDisc) * itemQty);
+
+          const photoHtml = item.imgSrc ? `<br><img src="${item.imgSrc}" class="saree-img-box" alt="Saree Photo">` : '';
+
+          tableRowsHtml += `
+            <tr class="border-b">
+              <td class="p-3 align-top"><span class="font-medium text-sm text-gray-900">${item.name}</span>${photoHtml}</td>
+              <td class="p-3 text-gray-500 line-through align-top">LKR ${itemOrig.toLocaleString()}</td>
+              <td class="p-3 align-top">LKR ${itemDisc.toLocaleString()}</td>
+              <td class="p-3 text-center align-top">${itemQty}</td>
+              <td class="p-3 text-right font-medium align-top">LKR ${lineTotal.toLocaleString()}</td>
+            </tr>
+          `;
+        });
+      } else {
+        // Fallback for older orders missing structured JSON
+        calculatedSubtotal = finalTotal - delCost;
+        tableRowsHtml = `
+          <tr class="border-b">
+            <td class="p-3 align-top"><span class="font-medium text-sm text-gray-900">${itemsSummary || 'Saree Order'}</span></td>
+            <td class="p-3 text-gray-500 line-through align-top">-</td>
+            <td class="p-3 align-top">-</td>
+            <td class="p-3 text-center align-top">1</td>
+            <td class="p-3 text-right font-medium align-top">LKR ${calculatedSubtotal.toLocaleString()}</td>
+          </tr>
+        `;
+      }
 
       renderContainer.innerHTML = `
         <div id="tempPdfCard" class="pdf-render-canvas border p-8 rounded bg-white text-gray-800 space-y-6">
@@ -825,7 +899,7 @@
             </div>
             <div class="text-right w-1/3 shrink-0">
               <p class="text-sm font-bold text-amber-950">Invoice #: <span>${invNo}</span></p>
-              <p class="text-xs text-gray-600 mt-1">Date: <span>${new Date().toLocaleDateString()}</span></p>
+              <p class="text-xs text-gray-600 mt-1">Date: <span>${orderDate}</span></p>
             </div>
           </div>
 
@@ -846,23 +920,35 @@
           <table class="w-full text-left text-xs border-collapse">
             <thead>
               <tr class="border-b bg-[#fef3c7] text-amber-900">
-                <th class="p-3 w-3/5">Item Details</th>
+                <th class="p-3 w-2/5">Item Details</th>
+                <th class="p-3">Original Price</th>
+                <th class="p-3">Discount Price</th>
+                <th class="p-3 text-center">Qty</th>
                 <th class="p-3 text-right">Total</th>
               </tr>
             </thead>
             <tbody>
-              <tr class="border-b">
-                <td class="p-3">${itemsSummary || 'Saree Order'}</td>
-                <td class="p-3 text-right font-medium">LKR ${parseFloat(grandTotal || 0).toLocaleString()}</td>
-              </tr>
+              ${tableRowsHtml}
             </tbody>
           </table>
 
           <div class="flex justify-end pt-2">
             <table class="w-1/2 text-right text-xs space-y-1">
+              <tr>
+                <td class="py-1"><strong>Subtotal (Original):</strong></td>
+                <td class="py-1 pl-4">LKR ${calculatedSubtotal.toLocaleString()}</td>
+              </tr>
+              <tr class="text-emerald-700">
+                <td class="py-1"><strong>Total Discount Saved:</strong></td>
+                <td class="py-1 pl-4">LKR ${calculatedDiscount.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td class="py-1"><strong>Delivery Cost:</strong></td>
+                <td class="py-1 pl-4">LKR ${delCost.toLocaleString()}</td>
+              </tr>
               <tr class="text-sm font-bold text-amber-950 border-t">
                 <td class="pt-2">Grand Total:</td>
-                <td class="pt-2 pl-4">LKR ${parseFloat(grandTotal || 0).toLocaleString()}</td>
+                <td class="pt-2 pl-4">LKR ${finalTotal.toLocaleString()}</td>
               </tr>
             </table>
           </div>
