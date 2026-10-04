@@ -2,288 +2,270 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>The Saree Embassy - Business Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Saree Embassy - Management Dashboard</title>
+  
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- html2canvas & jsPDF CDNs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
   <style>
-    .brand-logo-box { width: 90px; height: 90px; object-fit: cover; border-radius: 6px; }
-    .saree-img-box { width: 70px; height: 100px; object-fit: cover; border: 1px solid #e5e7eb; border-radius: 4px; margin-top: 6px; }
-    .pdf-render-canvas { width: 800px; background-color: #ffffff !important; }
-    .delivery-label-canvas { width: 680px; background-color: #ffffff !important; }
-    .cod-sticker-area { width: 100%; min-height: 110px; border: 2px dashed #92400e; border-radius: 6px; display: flex; align-items: center; justify-content: center; text-align: center; background-color: #fffbeb; padding: 8px; }
-    .invoice-preview-wrapper { width: 100%; overflow-x: auto; display: flex; justify-content: flex-start; }
+    .saree-img-box { width: 50px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #e5e7eb; }
+    .brand-logo-box { width: 60px; height: 60px; object-fit: contain; }
+    .cod-sticker-area { border: 2px dashed #b45309; border-radius: 6px; padding: 12px; text-align: center; background-color: #fffbeb; }
   </style>
 </head>
-<body class="bg-[#fefce8] text-gray-800 font-sans antialiased">
+<body class="bg-stone-100 text-stone-800 font-sans min-h-screen flex flex-col md:flex-row">
 
-  <div class="flex flex-col md:flex-row min-h-screen">
-    <!-- Sidebar -->
-    <aside class="w-full md:w-64 bg-amber-900 text-amber-100 flex flex-col p-4 md:p-5 space-y-4 shrink-0">
-      <h1 class="text-xl md:text-2xl font-serif font-bold text-amber-300">The Saree Embassy</h1>
-      <nav class="flex md:flex-col overflow-x-auto space-x-2 md:space-x-0 md:space-y-3">
-        <button onclick="switchTab('orders')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition font-medium">Orders & Invoice</button>
-        <button onclick="switchTab('inventory')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition font-medium">Inventory & Pricing</button>
-        <button onclick="switchTab('analytics')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition font-medium">Sales Analytics</button>
-        <button onclick="switchTab('customers')" class="whitespace-nowrap text-left py-2 px-3 rounded hover:bg-amber-800 transition font-medium">Customer Directory</button>
-      </nav>
-    </aside>
+  <!-- Sidebar Navigation -->
+  <aside class="w-full md:w-64 bg-amber-950 text-amber-50 flex flex-col p-4 shadow-xl shrink-0">
+    <div class="flex items-center space-x-3 mb-8 px-2 border-b border-amber-900/50 pb-4">
+      <img id="brandLogo" src="https://via.placeholder.com/60?text=Logo" alt="Brand Logo" class="brand-logo-box bg-amber-50 rounded-lg p-1">
+      <div>
+        <h1 class="text-sm font-bold tracking-wider font-serif text-amber-200">THE SAREE EMBASSY</h1>
+        <p class="text-[10px] text-amber-400">Business Dashboard</p>
+      </div>
+    </div>
 
-    <!-- Main Section -->
-    <main class="flex-1 overflow-y-auto p-4 md:p-8">
-      
-      <!-- TAB 1: Orders -->
-      <section id="tab-orders" class="tab-content">
-        <div class="flex justify-between items-center mb-4 gap-3">
-          <div>
-            <h2 class="text-xl md:text-2xl font-bold font-serif text-amber-950" id="orderTabTitle">Create New Order</h2>
-            <p class="text-xs text-amber-800" id="editingNotice"></p>
-          </div>
-          <button type="button" onclick="createNewOrder()" class="bg-amber-900 text-amber-100 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">+ Clear / New Order</button>
+    <nav class="space-y-1 flex-1">
+      <button onclick="switchTab('orders')" class="w-full text-left px-3 py-2.5 rounded text-xs font-semibold hover:bg-amber-900/60 transition flex items-center space-x-2">
+        <span>📝</span><span>Orders & Invoice</span>
+      </button>
+      <button onclick="switchTab('customers')" class="w-full text-left px-3 py-2.5 rounded text-xs font-semibold hover:bg-amber-900/60 transition flex items-center space-x-2">
+        <span>👥</span><span>Customer Directory</span>
+      </button>
+      <button onclick="switchTab('analytics')" class="w-full text-left px-3 py-2.5 rounded text-xs font-semibold hover:bg-amber-900/60 transition flex items-center space-x-2">
+        <span>📊</span><span>Analytics</span>
+      </button>
+    </nav>
+
+    <div class="mt-auto border-t border-amber-900/50 pt-4 px-2 space-y-2">
+      <label class="block text-[11px] text-amber-300 font-semibold">Change Logo:</label>
+      <input type="file" accept="image/*" onchange="loadLogo(this)" class="text-[10px] text-amber-200 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-amber-800 file:text-amber-100 cursor-pointer">
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 p-4 md:p-8 overflow-x-hidden">
+    
+    <!-- Tab 1: Orders & Invoicing -->
+    <section id="tab-orders" class="tab-content space-y-6">
+      <div class="flex justify-between items-center border-b pb-4 border-amber-200">
+        <div>
+          <h2 id="orderTabTitle" class="text-xl font-bold font-serif text-amber-950">Create New Order</h2>
+          <span id="editingNotice" class="text-xs text-amber-700 font-medium"></span>
         </div>
+        <button onclick="createNewOrder()" class="bg-amber-900 hover:bg-amber-950 text-white text-xs px-3 py-2 rounded font-semibold transition">
+          + New Order
+        </button>
+      </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <!-- Form -->
-          <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 lg:col-span-4 space-y-4">
-            <h3 class="font-semibold text-lg text-amber-900">Customer & Item Details</h3>
-            <form id="orderForm" onsubmit="generateInvoice(event)" class="space-y-4">
-              <input type="hidden" id="editingInvNo" value="">
-              <input type="text" id="custName" placeholder="Customer Name" class="w-full border p-3 rounded" required>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input type="tel" id="custPhone1" placeholder="Primary Phone" class="w-full border p-3 rounded" required>
-                <input type="tel" id="custPhone2" placeholder="Secondary Phone" class="w-full border p-3 rounded">
-              </div>
-              <textarea id="custAddress" placeholder="Delivery Address" class="w-full border p-3 rounded h-20" required></textarea>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Order Entry Form -->
+        <form id="orderForm" onsubmit="generateInvoice(event)" class="bg-white p-5 rounded-lg shadow-sm border border-stone-200 space-y-4">
+          <input type="hidden" id="editingInvNo" value="">
 
-              <div class="border-t pt-4 space-y-3">
-                <div class="flex justify-between items-center">
-                  <h3 class="font-semibold text-amber-900">Items & Photos</h3>
-                  <button type="button" onclick="addItemRow()" class="text-xs bg-amber-100 text-amber-900 font-bold px-2 py-1 rounded">+ Add Item</button>
-                </div>
-                <div id="itemsContainer" class="space-y-3"></div>
-                <div class="grid grid-cols-2 gap-2 pt-2">
-                  <div>
-                    <label class="text-xs font-semibold text-amber-900">Delivery Cost (LKR):</label>
-                    <input type="number" id="deliveryCostInput" value="350" class="w-full border p-2 rounded mt-1" required>
-                  </div>
-                  <div>
-                    <label class="text-xs font-semibold text-amber-900">COD Amount (LKR):</label>
-                    <input type="number" id="codAmountInput" value="0" class="w-full border p-2 rounded mt-1">
-                  </div>
-                </div>
-              </div>
-              <button type="submit" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900">Generate & Sync Invoice</button>
-            </form>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Customer Name *</label>
+              <input type="text" id="custName" required class="w-full border border-stone-300 p-2 rounded text-xs focus:ring-1 focus:ring-amber-800 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Primary Phone *</label>
+              <input type="text" id="custPhone1" required class="w-full border border-stone-300 p-2 rounded text-xs focus:ring-1 focus:ring-amber-800 outline-none">
+            </div>
           </div>
 
-          <!-- Previews -->
-          <div class="lg:col-span-8 space-y-8">
-            <!-- Invoice Preview -->
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100">
-              <div class="flex justify-between items-center mb-4">
-                <h3 class="font-semibold text-lg text-amber-900">Invoice Preview</h3>
-                <div class="flex space-x-2">
-                  <button onclick="downloadElementPDF('invoiceCard', document.getElementById('invNo').innerText)" class="bg-amber-800 text-white px-3 py-1.5 rounded text-xs">Download PDF</button>
-                  <button onclick="shareWhatsAppPDF()" class="bg-emerald-600 text-white px-3 py-1.5 rounded text-xs">Share WA PDF</button>
-                </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Secondary Phone</label>
+              <input type="text" id="custPhone2" class="w-full border border-stone-300 p-2 rounded text-xs focus:ring-1 focus:ring-amber-800 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Delivery Fee (LKR)</label>
+              <input type="number" id="deliveryCostInput" value="350" class="w-full border border-stone-300 p-2 rounded text-xs focus:ring-1 focus:ring-amber-800 outline-none">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Delivery Address *</label>
+            <textarea id="custAddress" rows="2" required class="w-full border border-stone-300 p-2 rounded text-xs focus:ring-1 focus:ring-amber-800 outline-none"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Override COD Collect Amount (Optional)</label>
+            <input type="number" id="codAmountInput" placeholder="Auto-calculated if left blank" class="w-full border border-stone-300 p-2 rounded text-xs focus:ring-1 focus:ring-amber-800 outline-none">
+          </div>
+
+          <div class="border-t border-stone-200 pt-3">
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-xs font-bold text-amber-950 uppercase tracking-wide">Saree Items</label>
+              <button type="button" onclick="addItemRow()" class="text-xs text-amber-900 font-bold hover:underline">+ Add Saree Item</button>
+            </div>
+            <div id="itemsContainer" class="space-y-3"></div>
+          </div>
+
+          <button type="submit" class="w-full bg-amber-900 hover:bg-amber-950 text-white font-bold py-2.5 rounded text-xs transition">
+            Generate Invoice & Save Order
+          </button>
+        </form>
+
+        <!-- Preview Documents -->
+        <div class="space-y-6">
+          <!-- Invoice Preview Card -->
+          <div id="invoiceCard" class="bg-white p-6 rounded-lg shadow-sm border border-stone-200 space-y-4">
+            <div class="border-b pb-3 flex justify-between items-start">
+              <div>
+                <h3 class="text-lg font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
+                <p class="text-[11px] text-gray-600">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
+                <p class="text-[11px] text-gray-600">WhatsApp: 0702394119</p>
               </div>
-              
-              <div class="invoice-preview-wrapper bg-[#fffbeb] p-4 rounded-xl border">
-                <div id="invoiceCard" class="pdf-render-canvas border p-8 rounded bg-white text-gray-800 space-y-6 shadow-md">
-                  <div class="border-b pb-4 flex justify-between items-start">
-                    <div class="flex items-start space-x-3 w-2/3">
-                      <label for="logoUpload" class="cursor-pointer">
-                        <img id="brandLogo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%2378350f' stroke-width='1.5'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>" class="brand-logo-box border border-amber-200 rounded p-1 bg-[#fffbeb]">
-                      </label>
-                      <input type="file" id="logoUpload" accept="image/*" class="hidden" onchange="loadLogo(this)">
-                      <div>
-                        <h4 class="text-xl font-bold font-serif text-amber-900">THE SAREE EMBASSY</h4>
-                        <p class="text-xs text-gray-600 mt-1">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
-                        <p class="text-xs text-gray-600">WhatsApp: 0702394119</p>
-                      </div>
-                    </div>
-                    <div class="text-right w-1/3">
-                      <p class="text-sm font-bold text-amber-950">Invoice #: <span id="invNo">---</span></p>
-                      <p class="text-xs text-gray-600 mt-1">Date: <span id="invDate">---</span></p>
-                    </div>
-                  </div>
-
-                  <table class="w-full bg-[#fffbeb] p-4 rounded text-xs border border-amber-100">
-                    <tr>
-                      <td class="w-1/2 align-top p-2">
-                        <p><strong>Customer:</strong> <span id="invCustomer">---</span></p>
-                        <p class="mt-1"><strong>Phone 1:</strong> <span id="invPhone1">---</span></p>
-                        <p class="mt-1"><strong>Phone 2:</strong> <span id="invPhone2">---</span></p>
-                      </td>
-                      <td class="w-1/2 align-top p-2">
-                        <p><strong>Address:</strong></p>
-                        <p id="invAddress" class="text-gray-600 mt-1">---</p>
-                      </td>
-                    </tr>
-                  </table>
-
-                  <table class="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr class="border-b bg-[#fef3c7] text-amber-900">
-                        <th class="p-3 w-2/5">Item Details</th>
-                        <th class="p-3">Original</th>
-                        <th class="p-3">Discounted</th>
-                        <th class="p-3 text-center">Qty</th>
-                        <th class="p-3 text-right">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody id="invTableBody">
-                      <tr class="border-b"><td colspan="5" class="p-4 text-center text-gray-400">Generate invoice to display items</td></tr>
-                    </tbody>
-                  </table>
-
-                  <div class="flex justify-end pt-2">
-                    <table class="w-1/2 text-right text-xs space-y-1">
-                      <tr><td class="py-1"><strong>Subtotal:</strong></td><td class="py-1 pl-4">LKR <span id="invSubtotal">0.00</span></td></tr>
-                      <tr class="text-emerald-700"><td class="py-1"><strong>Discount Saved:</strong></td><td class="py-1 pl-4">LKR <span id="invDiscount">0.00</span></td></tr>
-                      <tr><td class="py-1"><strong>Delivery:</strong></td><td class="py-1 pl-4">LKR <span id="invDelivery">0.00</span></td></tr>
-                      <tr class="text-sm font-bold text-amber-950 border-t"><td class="pt-2">Grand Total:</td><td class="pt-2 pl-4">LKR <span id="invGrandTotal">0.00</span></td></tr>
-                    </table>
-                  </div>
-                </div>
+              <div class="text-right">
+                <p class="text-xs font-bold text-amber-950">Invoice #: <span id="invNo">---</span></p>
+                <p class="text-[11px] text-gray-600">Date: <span id="invDate">---</span></p>
               </div>
             </div>
 
-            <!-- Label Preview -->
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100">
-              <div class="flex justify-between items-center mb-4">
-                <h3 class="font-semibold text-lg text-amber-900">Delivery Label Preview</h3>
-                <div class="flex space-x-2">
-                  <button onclick="downloadElementPDF('deliveryLabelCard', 'LABEL-' + document.getElementById('lblInvNo').innerText, 'a5', 'l')" class="bg-amber-800 text-white px-3 py-1.5 rounded text-xs">Download Label PDF</button>
-                  <button onclick="shareLabelWhatsApp()" class="bg-emerald-600 text-white px-3 py-1.5 rounded text-xs">Share WA PDF</button>
-                </div>
-              </div>
-
-              <div class="flex justify-start bg-[#fffbeb] p-4 rounded-xl border overflow-x-auto">
-                <div id="deliveryLabelCard" class="delivery-label-canvas border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4 shadow-md shrink-0">
-                  <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-center">
-                    <div>
-                      <h3 class="text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
-                      <p class="text-xs text-gray-600">NO. 420/5A/01, Kadawatha Road, Ganemulla | WhatsApp: 0702394119</p>
-                    </div>
-                    <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase" id="lblPayBadge">COD</span>
-                  </div>
-
-                  <div class="flex flex-row gap-4">
-                    <div class="w-7/12 space-y-2">
-                      <p class="text-[11px] text-gray-500 font-bold uppercase">DELIVER TO:</p>
-                      <h2 class="text-lg font-bold text-gray-900" id="lblCustName">CUSTOMER NAME</h2>
-                      <p class="text-xs text-gray-700 whitespace-pre-line" id="lblAddress">Delivery Address</p>
-                      <div class="pt-2 flex flex-col gap-1 text-xs">
-                        <p><strong>Primary Phone:</strong> <span id="lblPhone1">---</span></p>
-                        <p><strong>Secondary Phone:</strong> <span id="lblPhone2">---</span></p>
-                        <p class="mt-1"><strong>Order Ref:</strong> <span id="lblInvNo">---</span></p>
-                      </div>
-                    </div>
-                    <div class="w-5/12 flex items-center justify-center">
-                      <div class="cod-sticker-area">
-                        <p class="text-xs text-amber-900 font-bold">PLACE COD STICKER HERE<br><span class="text-[10px] text-amber-700 font-normal">(1.5" × 3" Box)</span></p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="border-t-2 border-dashed border-gray-300 pt-3 flex justify-between items-center text-xs">
-                    <p class="text-gray-500 text-[11px]">Please verify details before handover to courier.</p>
-                    <div class="text-right bg-[#fffbeb] p-3 rounded border border-amber-300 min-w-[210px]">
-                      <p class="text-amber-950 font-bold text-[11px] border-b border-amber-200 pb-1 mb-1 uppercase tracking-wide">Collect Cash Breakdown</p>
-                      <table class="w-full text-xs text-right">
-                        <tr>
-                          <td class="text-gray-600 font-medium">Total:</td>
-                          <td class="pl-2 font-semibold">LKR <span id="lblSubtotal">0.00</span></td>
-                        </tr>
-                        <tr>
-                          <td class="text-gray-600 font-medium">Delivery:</td>
-                          <td class="pl-2 font-semibold">LKR <span id="lblDelivery">0.00</span></td>
-                        </tr>
-                        <tr class="border-t border-amber-300 text-amber-950 font-extrabold text-sm">
-                          <td class="pt-1">Grand Total:</td>
-                          <td class="pt-1 pl-2 text-amber-900">LKR <span id="lblGrandTotal">0.00</span></td>
-                        </tr>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
+            <div class="bg-[#fffbeb] p-3 rounded text-xs space-y-1 border border-amber-100">
+              <p><strong>Customer:</strong> <span id="invCustomer">---</span></p>
+              <p><strong>Phone 1:</strong> <span id="invPhone1">---</span> | <strong>Phone 2:</strong> <span id="invPhone2">---</span></p>
+              <p><strong>Address:</strong> <span id="invAddress">---</span></p>
             </div>
-          </div>
-        </div>
-      </section>
 
-      <!-- TAB 2: Inventory -->
-      <section id="tab-inventory" class="tab-content hidden">
-        <h2 class="text-2xl font-bold mb-6 font-serif text-amber-950">Add Saree & Pricing</h2>
-        <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-100 max-w-lg">
-          <form onsubmit="alert('Item Added!'); event.preventDefault();" class="space-y-4">
-            <input type="text" placeholder="Saree Name / Type" class="w-full border p-3 rounded" required>
-            <input type="text" placeholder="Fabric" class="w-full border p-3 rounded" required>
-            <input type="number" placeholder="Original Price (LKR)" class="w-full border p-3 rounded" required>
-            <input type="number" placeholder="Discount Price (LKR)" class="w-full border p-3 rounded" required>
-            <input type="number" placeholder="Stock Quantity" class="w-full border p-3 rounded" required>
-            <button type="submit" class="w-full bg-amber-800 text-white py-3 rounded font-medium hover:bg-amber-900">Add to Catalogue</button>
-          </form>
-        </div>
-      </section>
-
-      <!-- TAB 3: Analytics -->
-      <section id="tab-analytics" class="tab-content hidden">
-        <h2 class="text-2xl font-bold mb-6 font-serif text-amber-950">Sales Performance</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="bg-white p-4 rounded-xl border"><h3 class="font-semibold text-gray-700 mb-2">Monthly Revenue</h3><div class="relative h-64"><canvas id="salesChart"></canvas></div></div>
-          <div class="bg-white p-4 rounded-xl border"><h3 class="font-semibold text-gray-700 mb-2">Top Fabrics</h3><div class="relative h-64"><canvas id="fabricChart"></canvas></div></div>
-        </div>
-      </section>
-
-      <!-- TAB 4: Directory -->
-      <section id="tab-customers" class="tab-content hidden space-y-6">
-        <div class="flex justify-between items-center bg-amber-100/60 p-4 rounded-xl border border-amber-200">
-          <div>
-            <h2 class="text-xl font-bold text-amber-950 font-serif">Customer Directory</h2>
-            <p class="text-xs text-amber-800">Live order database and quick actions</p>
-          </div>
-          <button onclick="renderCustomers()" class="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-sm font-semibold shadow">Sync Now</button>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-amber-200 overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-              <thead class="bg-amber-900 text-amber-100 uppercase text-xs font-semibold">
-                <tr>
-                  <th class="p-3">Inv No</th>
-                  <th class="p-3">Date</th>
-                  <th class="p-3">Customer Name</th>
-                  <th class="p-3">Phones & Address</th>
-                  <th class="p-3">COD Tracking No</th>
-                  <th class="p-3">Saree Photo</th>
-                  <th class="p-3">Items</th>
-                  <th class="p-3">Totals & COD</th>
-                  <th class="p-3">Payment Status</th>
-                  <th class="p-3 text-center">Actions</th>
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b bg-[#fef3c7] text-amber-900">
+                  <th class="p-2">Item Details</th>
+                  <th class="p-2">Original</th>
+                  <th class="p-2">Discounted</th>
+                  <th class="p-2 text-center">Qty</th>
+                  <th class="p-2 text-right">Total</th>
                 </tr>
               </thead>
-              <tbody id="customerTableBody" class="divide-y divide-amber-100">
-                <tr><td colspan="10" class="p-6 text-center text-amber-700 font-medium">Click "Sync Now" to load data...</td></tr>
+              <tbody id="invTableBody">
+                <tr><td colspan="5" class="p-4 text-center text-gray-400">No items added yet</td></tr>
               </tbody>
             </table>
+
+            <div class="flex justify-end pt-2">
+              <table class="w-1/2 text-right text-xs space-y-1">
+                <tr><td class="py-0.5"><strong>Subtotal:</strong></td><td class="pl-2">LKR <span id="invSubtotal">0.00</span></td></tr>
+                <tr class="text-emerald-700"><td class="py-0.5"><strong>Discount Saved:</strong></td><td class="pl-2">LKR <span id="invDiscount">0.00</span></td></tr>
+                <tr><td class="py-0.5"><strong>Delivery:</strong></td><td class="pl-2">LKR <span id="invDelivery">0.00</span></td></tr>
+                <tr class="text-sm font-bold text-amber-950 border-t"><td class="pt-1">Grand Total:</td><td class="pt-1 pl-2">LKR <span id="invGrandTotal">0.00</span></td></tr>
+              </table>
+            </div>
+
+            <div class="flex gap-2 pt-2 border-t">
+              <button onclick="downloadElementPDF('invoiceCard', document.getElementById('invNo').innerText)" class="flex-1 bg-stone-800 text-white py-1.5 rounded text-xs font-semibold hover:bg-stone-900">PDF Invoice</button>
+              <button onclick="shareWhatsAppPDF()" class="flex-1 bg-emerald-700 text-white py-1.5 rounded text-xs font-semibold hover:bg-emerald-800">WA Invoice</button>
+            </div>
+          </div>
+
+          <!-- Label Preview Card -->
+          <div id="deliveryLabelCard" class="bg-white p-5 rounded-lg shadow-sm border-2 border-amber-900 space-y-3">
+            <div class="border-b pb-2 flex justify-between items-center">
+              <div>
+                <h4 class="text-sm font-bold font-serif text-amber-950">THE SAREE EMBASSY</h4>
+                <p class="text-[10px] text-gray-600">Ganemulla | WhatsApp: 0702394119</p>
+              </div>
+              <span id="lblPayBadge" class="bg-amber-900 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase">COD</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <p class="text-[10px] text-gray-500 font-bold uppercase">DELIVER TO:</p>
+                <h5 id="lblCustName" class="font-bold text-gray-900 text-sm">---</h5>
+                <p id="lblAddress" class="text-gray-700 text-[11px] mt-0.5 whitespace-pre-line">---</p>
+                <p class="mt-2 text-[11px]"><strong>P1:</strong> <span id="lblPhone1">---</span></p>
+                <p class="text-[11px]"><strong>P2:</strong> <span id="lblPhone2">---</span></p>
+                <p class="text-[10px] text-gray-500 mt-1">Ref: <span id="lblInvNo">---</span></p>
+              </div>
+              <div class="cod-sticker-area flex items-center justify-center">
+                <p class="text-[10px] text-amber-900 font-bold">PLACE COD STICKER HERE<br><span class="text-[9px] text-amber-700 font-normal">(1.5" × 3" Box)</span></p>
+              </div>
+            </div>
+
+            <div class="border-t border-dashed pt-2 flex justify-between items-center text-xs">
+              <span class="text-[10px] text-gray-500">Collect Cash on Delivery</span>
+              <div class="text-right bg-[#fffbeb] p-2 rounded border border-amber-200">
+                <p class="text-[10px] text-gray-600">Items: LKR <span id="lblSubtotal">0.00</span> | Del: LKR <span id="lblDelivery">0.00</span></p>
+                <p class="font-bold text-amber-950 text-xs">COD: LKR <span id="lblGrandTotal">0.00</span></p>
+              </div>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+              <button onclick="downloadElementPDF('deliveryLabelCard', 'LABEL-' + document.getElementById('lblInvNo').innerText, 'a5', 'l')" class="flex-1 bg-stone-800 text-white py-1.5 rounded text-xs font-semibold hover:bg-stone-900">PDF Label</button>
+              <button onclick="shareLabelWhatsApp()" class="flex-1 bg-emerald-700 text-white py-1.5 rounded text-xs font-semibold hover:bg-emerald-800">WA Label</button>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-    </main>
-  </div>
+    <!-- Tab 2: Customer Directory -->
+    <section id="tab-customers" class="tab-content hidden space-y-4">
+      <div class="flex justify-between items-center border-b pb-4 border-amber-200">
+        <div>
+          <h2 class="text-xl font-bold font-serif text-amber-950">Customer Directory</h2>
+          <p class="text-xs text-gray-600">Live Database synced with Google Sheets</p>
+        </div>
+        <button onclick="renderCustomers()" class="bg-amber-900 text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-amber-950">Sync Now</button>
+      </div>
 
+      <div class="bg-white rounded-lg shadow-sm border border-stone-200 overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-amber-900 text-white text-[11px] font-semibold uppercase tracking-wider">
+              <th class="p-2.5">Inv No</th>
+              <th class="p-2.5">Date</th>
+              <th class="p-2.5">Customer Name</th>
+              <th class="p-2.5">Phones & Address</th>
+              <th class="p-2.5">COD Tracking No</th>
+              <th class="p-2.5">Saree Photo</th>
+              <th class="p-2.5">Items</th>
+              <th class="p-2.5">Totals & COD</th>
+              <th class="p-2.5">Payment Status</th>
+              <th class="p-2.5 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="customerTableBody" class="divide-y divide-amber-100 text-xs">
+            <tr><td colspan="10" class="p-6 text-center text-amber-700 font-medium">Click "Sync Now" or switch tabs to load database...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Tab 3: Analytics -->
+    <section id="tab-analytics" class="tab-content hidden space-y-6">
+      <div class="border-b pb-4 border-amber-200">
+        <h2 class="text-xl font-bold font-serif text-amber-950">Analytics & Insights</h2>
+        <p class="text-xs text-gray-600">Overview of sales and fabric categories</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-4 rounded-lg border border-stone-200 shadow-sm">
+          <h3 class="text-xs font-bold text-amber-950 uppercase mb-3">Monthly Sales Trend</h3>
+          <div class="h-64"><canvas id="salesChart"></canvas></div>
+        </div>
+        <div class="bg-white p-4 rounded-lg border border-stone-200 shadow-sm">
+          <h3 class="text-xs font-bold text-amber-950 uppercase mb-3">Top Saree Categories</h3>
+          <div class="h-64"><canvas id="fabricChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- JavaScript Integration -->
   <script>
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi9XxpdFjsvRRPwHl0RGY6wiizgJuyRk6r7jM7UgPeXDZoVQ_JD7rTFDZizwQcyzSX/exec";
     let cachedSheetData = [];
 
-    // Initialize logo from storage on page load
     window.addEventListener('DOMContentLoaded', () => {
       const storedLogo = localStorage.getItem('sareeEmbassyLogo');
       if (storedLogo) {
@@ -306,16 +288,16 @@
       
       row.innerHTML = `
         <button type="button" onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-red-500 font-bold text-xs">✕</button>
-        <input type="text" placeholder="Saree Name / Type" value="${data && data.name ? data.name : ''}" class="saree-name w-full border p-2 rounded" required>
+        <input type="text" placeholder="Saree Name / Type" value="${data && data.name ? data.name : ''}" class="saree-name w-full border p-2 rounded text-xs" required>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-gray-600">Upload Photo:</label>
-          <input type="file" accept="image/*" class="saree-photo w-full text-xs border p-1 rounded bg-white" onchange="previewImage(this)">
+          <label class="text-[11px] font-semibold text-gray-600">Upload Photo:</label>
+          <input type="file" accept="image/*" class="saree-photo w-full text-[10px] border p-1 rounded bg-white" onchange="previewImage(this)">
           <div class="image-preview-container">${data && data.imgSrc ? `<img src="${data.imgSrc}" class="saree-img-box">` : ''}</div>
         </div>
         <div class="grid grid-cols-3 gap-2">
-          <input type="number" placeholder="Orig." value="${data && data.origPrice !== undefined ? data.origPrice : ''}" class="saree-orig-price w-full border p-2 rounded" required>
-          <input type="number" placeholder="Disc." value="${data && data.discPrice !== undefined ? data.discPrice : ''}" class="saree-disc-price w-full border p-2 rounded" required>
-          <input type="number" placeholder="Qty" value="${data && data.qty ? data.qty : 1}" min="1" class="saree-qty w-full border p-2 rounded" required>
+          <input type="number" placeholder="Orig." value="${data && data.origPrice !== undefined ? data.origPrice : ''}" class="saree-orig-price w-full border p-1.5 rounded text-xs" required>
+          <input type="number" placeholder="Disc." value="${data && data.discPrice !== undefined ? data.discPrice : ''}" class="saree-disc-price w-full border p-1.5 rounded text-xs" required>
+          <input type="number" placeholder="Qty" value="${data && data.qty ? data.qty : 1}" min="1" class="saree-qty w-full border p-1.5 rounded text-xs" required>
         </div>
       `;
       container.appendChild(row);
@@ -357,7 +339,7 @@
 
       let maxSeq = 0;
       cachedSheetData.forEach(item => {
-        const inv = item.invNo || item.invoiceNo || '';
+        const inv = item.invNo || item.invoiceNo || item['Invoice No'] || '';
         if (inv && String(inv).startsWith(datePrefix)) {
           const seq = parseInt(String(inv).slice(-3), 10);
           if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
@@ -386,10 +368,15 @@
         items = Array.isArray(itemData.rawItems) ? itemData.rawItems : [];
       }
       if (!items || !items.length) {
+        const summaryText = itemData.itemsSummary || itemData.items || itemData['Items Summary'] || 'Saree Item';
+        const grandTotal = parseFloat(itemData.grandTotal || itemData.total || 0);
+        const deliveryCost = parseFloat(itemData.deliveryCost || 0);
+        const subtotal = parseFloat(itemData.subtotal || grandTotal);
+
         items = [{
-          name: itemData.itemsSummary || 'Saree Item',
-          origPrice: parseFloat(itemData.subtotal) || parseFloat(itemData.grandTotal) || 0,
-          discPrice: parseFloat(itemData.grandTotal) - (parseFloat(itemData.deliveryCost) || 0) || 0,
+          name: summaryText,
+          origPrice: subtotal,
+          discPrice: grandTotal - deliveryCost,
           qty: 1,
           imgSrc: itemData.photoBase64 || itemData.photoUrl || ''
         }];
@@ -436,11 +423,11 @@
         const tr = document.createElement('tr');
         tr.className = "border-b";
         tr.innerHTML = `
-          <td class="p-3"><p class="font-semibold text-gray-800">${sareeName}</p>${imgBox ? `<img src="${imgBox.src}" class="saree-img-box">` : ''}</td>
-          <td class="p-3 text-gray-500 line-through">LKR ${origPrice.toFixed(2)}</td>
-          <td class="p-3 font-semibold text-amber-900">LKR ${discPrice.toFixed(2)}</td>
-          <td class="p-3 text-center">${qty}</td>
-          <td class="p-3 text-right font-bold text-gray-800">LKR ${lineTotal.toFixed(2)}</td>
+          <td class="p-2"><p class="font-semibold text-gray-800">${sareeName}</p>${imgBox ? `<img src="${imgBox.src}" class="saree-img-box">` : ''}</td>
+          <td class="p-2 text-gray-500 line-through">LKR ${origPrice.toFixed(2)}</td>
+          <td class="p-2 font-semibold text-amber-900">LKR ${discPrice.toFixed(2)}</td>
+          <td class="p-2 text-center">${qty}</td>
+          <td class="p-2 text-right font-bold text-gray-800">LKR ${lineTotal.toFixed(2)}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -491,6 +478,9 @@
         body: JSON.stringify(payload)
       }).then(() => {
         alert("Order synchronized with Google Sheets successfully!");
+        if (!document.getElementById('tab-customers').classList.contains('hidden')) {
+          renderCustomers();
+        }
       }).catch(err => console.error("Error saving order:", err));
     }
 
@@ -557,6 +547,13 @@
       const deliveryVal = parseFloat(invoiceData.deliveryCost) || 0;
       const grandTotalVal = parseFloat(invoiceData.grandTotal) || 0;
 
+      const invNo = invoiceData.invNo || invoiceData.invoiceNo || invoiceData['Invoice No'] || '---';
+      const date = invoiceData.date || invoiceData.Date || '';
+      const name = invoiceData.name || invoiceData.customerName || invoiceData['Customer Name'] || '';
+      const phone1 = invoiceData.phone1 || invoiceData.phone || invoiceData['Phone 1'] || '';
+      const phone2 = invoiceData.phone2 || invoiceData['Phone 2'] || 'N/A';
+      const address = invoiceData.address || invoiceData['Delivery Address'] || invoiceData.Address || '';
+
       tempDiv.innerHTML = `
         <div class="border-b pb-4 flex justify-between items-start">
           <div class="flex items-start space-x-3 w-2/3">
@@ -568,21 +565,21 @@
             </div>
           </div>
           <div class="text-right w-1/3">
-            <p class="text-sm font-bold text-amber-950">Invoice #: ${invoiceData.invNo || '---'}</p>
-            <p class="text-xs text-gray-600 mt-1">Date: ${invoiceData.date || ''}</p>
+            <p class="text-sm font-bold text-amber-950">Invoice #: ${invNo}</p>
+            <p class="text-xs text-gray-600 mt-1">Date: ${date}</p>
           </div>
         </div>
 
         <table class="w-full bg-[#fffbeb] p-4 rounded text-xs border border-amber-100">
           <tr>
             <td class="w-1/2 align-top p-2">
-              <p><strong>Customer:</strong> ${invoiceData.name || ''}</p>
-              <p class="mt-1"><strong>Phone 1:</strong> ${invoiceData.phone1 || ''}</p>
-              <p class="mt-1"><strong>Phone 2:</strong> ${invoiceData.phone2 || 'N/A'}</p>
+              <p><strong>Customer:</strong> ${name}</p>
+              <p class="mt-1"><strong>Phone 1:</strong> ${phone1}</p>
+              <p class="mt-1"><strong>Phone 2:</strong> ${phone2}</p>
             </td>
             <td class="w-1/2 align-top p-2">
               <p><strong>Address:</strong></p>
-              <p class="text-gray-600 mt-1">${invoiceData.address || ''}</p>
+              <p class="text-gray-600 mt-1">${address}</p>
             </td>
           </tr>
         </table>
@@ -685,46 +682,58 @@
 
           tbody.innerHTML = '';
           cachedSheetData.forEach(item => {
-            const invNo = item.invNo || item.invoiceNo || '---';
+            const invNo = item.invNo || item.invoiceNo || item['Invoice No'] || item['Inv No'] || '---';
+            const date = item.date || item.Date || '---';
+            const name = item.name || item.customerName || item['Customer Name'] || item.Customer || '---';
+            const phone1 = item.phone1 || item.phone || item['Phone 1'] || '---';
+            const phone2 = item.phone2 || item['Phone 2'] || 'N/A';
+            const address = item.address || item['Delivery Address'] || item.Address || '---';
+            const itemsSummary = item.itemsSummary || item.items || item['Items Summary'] || item.Items || '---';
+            const photo = item.photoBase64 || item.photoUrl || item['Photo'] || '';
+            const grandTotal = item.grandTotal || item.total || item['Grand Total'] || 0;
+            const codAmount = item.codAmount || item['COD Amount'] || grandTotal;
+            const trackingNo = item.trackingNo || item['Tracking No'] || '';
+            const status = item.paymentStatus || item.status || item['Payment Status'] || 'Pending';
+
             const tr = document.createElement('tr');
-            tr.className = "hover:bg-amber-50/50 transition text-xs border-b border-amber-100";
+            tr.className = "hover:bg-amber-50/50 transition text-[11px] border-b border-amber-100 align-top";
 
             tr.innerHTML = `
-              <td class="p-3 font-bold text-amber-950">${invNo}</td>
-              <td class="p-3 text-gray-600">${item.date || '---'}</td>
-              <td class="p-3 font-semibold text-gray-800">${item.name || '---'}</td>
-              <td class="p-3">
-                <p><strong>P1:</strong> ${item.phone1 || '---'}</p>
-                <p><strong>P2:</strong> ${item.phone2 || '---'}</p>
-                <p class="text-[11px] text-gray-500 max-w-xs truncate">${item.address || '---'}</p>
+              <td class="p-2 font-bold text-amber-950 whitespace-nowrap">${invNo}</td>
+              <td class="p-2 text-gray-600 whitespace-nowrap">${date}</td>
+              <td class="p-2 font-semibold text-gray-800 break-words max-w-[100px]">${name}</td>
+              <td class="p-2 max-w-[140px] leading-tight">
+                <p class="font-medium text-gray-800"><strong>P1:</strong> ${phone1}</p>
+                <p class="text-gray-600"><strong>P2:</strong> ${phone2}</p>
+                <p class="text-[10px] text-gray-500 break-words mt-0.5">${address}</p>
               </td>
-              <td class="p-3">
+              <td class="p-2">
                 <div class="flex items-center gap-1">
-                  <input type="text" id="track-${invNo}" value="${item.trackingNo || ''}" placeholder="Tracking No" class="border p-1 rounded text-xs w-28 border-amber-200">
-                  <button onclick="saveTracking('${invNo}')" class="bg-amber-800 text-white px-2 py-1 rounded text-[10px]">Save</button>
+                  <input type="text" id="track-${invNo}" value="${trackingNo}" placeholder="Tracking" class="border p-1 rounded text-[10px] w-20 border-amber-200">
+                  <button onclick="saveTracking('${invNo}')" class="bg-amber-800 text-white px-1.5 py-1 rounded text-[9px] font-semibold">Save</button>
                 </div>
               </td>
-              <td class="p-3">
-                ${item.photoBase64 ? `<img src="${item.photoBase64}" class="saree-img-box">` : '<span class="text-gray-400">No Photo</span>'}
+              <td class="p-2 text-center">
+                ${photo ? `<img src="${photo}" class="w-12 h-16 object-cover border rounded mx-auto">` : '<span class="text-gray-400 text-[10px]">No Photo</span>'}
               </td>
-              <td class="p-3 max-w-xs text-gray-700">${item.itemsSummary || '---'}</td>
-              <td class="p-3">
-                <p><strong>Total:</strong> LKR ${parseFloat(item.grandTotal || 0).toFixed(2)}</p>
-                <p class="text-amber-900 font-semibold"><strong>COD:</strong> LKR ${parseFloat(item.codAmount || item.grandTotal || 0).toFixed(2)}</p>
+              <td class="p-2 max-w-[120px] break-words text-gray-700 leading-tight">${itemsSummary}</td>
+              <td class="p-2 whitespace-nowrap leading-tight">
+                <p class="text-gray-600"><strong>Total:</strong> LKR ${parseFloat(grandTotal).toFixed(2)}</p>
+                <p class="text-amber-900 font-bold mt-0.5"><strong>COD:</strong> LKR ${parseFloat(codAmount).toFixed(2)}</p>
               </td>
-              <td class="p-3">
-                <select onchange="updatePaymentStatus('${invNo}', this.value)" class="border p-1 rounded text-xs bg-white text-amber-900 border-amber-300">
-                  <option value="Pending" ${item.paymentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
-                  <option value="Paid" ${item.paymentStatus === 'Paid' ? 'selected' : ''}>Paid</option>
-                  <option value="Cancelled" ${item.paymentStatus === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+              <td class="p-2">
+                <select onchange="updatePaymentStatus('${invNo}', this.value)" class="border p-1 rounded text-[10px] bg-white text-amber-900 border-amber-300">
+                  <option value="Pending" ${status === 'Pending' ? 'selected' : ''}>Pending</option>
+                  <option value="Paid" ${status === 'Paid' ? 'selected' : ''}>Paid</option>
+                  <option value="Cancelled" ${status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
                 </select>
               </td>
-              <td class="p-3 text-center">
+              <td class="p-2 text-center whitespace-nowrap">
                 <div class="flex flex-col gap-1 items-center">
-                  <button onclick="editOrder('${invNo}')" class="w-20 bg-amber-800 text-white px-2 py-1 rounded text-[11px] font-medium hover:bg-amber-900">Edit</button>
-                  <button onclick="directShareWAInvoice('${invNo}')" class="w-20 bg-emerald-600 text-white px-2 py-1 rounded text-[11px] font-medium hover:bg-emerald-700">WA Invoice</button>
-                  <button onclick="directShareWALabel('${invNo}')" class="w-20 bg-emerald-700 text-white px-2 py-1 rounded text-[11px] font-medium hover:bg-emerald-800">WA Label</button>
-                  <button onclick="deleteOrder('${invNo}')" class="w-20 bg-red-600 text-white px-2 py-1 rounded text-[11px] font-medium hover:bg-red-700">Delete</button>
+                  <button onclick="editOrder('${invNo}')" class="w-16 bg-amber-800 text-white py-0.5 rounded text-[10px] font-medium hover:bg-amber-900">Edit</button>
+                  <button onclick="directShareWAInvoice('${invNo}')" class="w-16 bg-emerald-600 text-white py-0.5 rounded text-[10px] font-medium hover:bg-emerald-700">WA Inv</button>
+                  <button onclick="directShareWALabel('${invNo}')" class="w-16 bg-emerald-700 text-white py-0.5 rounded text-[10px] font-medium hover:bg-emerald-800">WA Lbl</button>
+                  <button onclick="deleteOrder('${invNo}')" class="w-16 bg-red-600 text-white py-0.5 rounded text-[10px] font-medium hover:bg-red-700">Delete</button>
                 </div>
               </td>
             `;
@@ -757,7 +766,7 @@
     }
 
     function editOrder(invNo) {
-      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo) === invNo);
+      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo || item['Invoice No']) === invNo);
       if (!order) return alert('Order not found!');
 
       switchTab('orders');
@@ -765,12 +774,12 @@
       document.getElementById('orderTabTitle').innerText = `Editing Order: ${invNo}`;
       document.getElementById('editingNotice').innerText = "(Modifying existing sheet row on submit)";
 
-      document.getElementById('custName').value = order.name || '';
-      document.getElementById('custPhone1').value = order.phone1 || '';
-      document.getElementById('custPhone2').value = order.phone2 || '';
-      document.getElementById('custAddress').value = order.address || '';
+      document.getElementById('custName').value = order.name || order.customerName || order['Customer Name'] || '';
+      document.getElementById('custPhone1').value = order.phone1 || order.phone || order['Phone 1'] || '';
+      document.getElementById('custPhone2').value = order.phone2 || order['Phone 2'] || '';
+      document.getElementById('custAddress').value = order.address || order['Delivery Address'] || '';
       document.getElementById('deliveryCostInput').value = order.deliveryCost || 350;
-      document.getElementById('codAmountInput').value = order.codAmount || 0;
+      document.getElementById('codAmountInput').value = order.codAmount || order['COD Amount'] || 0;
 
       const container = document.getElementById('itemsContainer');
       container.innerHTML = '';
@@ -780,7 +789,7 @@
     }
 
     async function directShareWAInvoice(invNo) {
-      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo) === invNo);
+      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo || item['Invoice No']) === invNo);
       if (!order) return alert('Order details not found.');
 
       const pdfBlob = await renderInvoiceDivAndGetBlob(order);
@@ -798,13 +807,14 @@
         a.href = url;
         a.download = `Invoice-${invNo}.pdf`;
         a.click();
-        const cleanPhone = (order.phone1 || '').replace(/[^0-9]/g, '');
+        const phoneVal = order.phone1 || order.phone || order['Phone 1'] || '';
+        const cleanPhone = phoneVal.replace(/[^0-9]/g, '');
         window.open(`https://wa.me/${cleanPhone}?text=Dear%20customer,%20your%20invoice%20${invNo}%20has%20been%20downloaded.%20Thank%20you!`, '_blank');
       }
     }
 
     async function directShareWALabel(invNo) {
-      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo) === invNo);
+      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo || item['Invoice No']) === invNo);
       if (!order) return alert('Order details not found.');
 
       const tempDiv = document.createElement('div');
@@ -813,7 +823,14 @@
       tempDiv.style.top = '0';
       tempDiv.style.left = '-2000px';
 
-      const itemsDiscountedTotal = (parseFloat(order.grandTotal) || 0) - (parseFloat(order.deliveryCost) || 0);
+      const grandTotalVal = parseFloat(order.grandTotal || order.total || 0);
+      const deliveryCostVal = parseFloat(order.deliveryCost || 0);
+      const itemsDiscountedTotal = grandTotalVal - deliveryCostVal;
+
+      const name = order.name || order.customerName || order['Customer Name'] || '';
+      const phone1 = order.phone1 || order.phone || order['Phone 1'] || '';
+      const phone2 = order.phone2 || order['Phone 2'] || 'N/A';
+      const address = order.address || order['Delivery Address'] || '';
 
       tempDiv.innerHTML = `
         <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-center">
@@ -826,11 +843,11 @@
         <div class="flex flex-row gap-4">
           <div class="w-7/12 space-y-2">
             <p class="text-[11px] text-gray-500 font-bold uppercase">DELIVER TO:</p>
-            <h2 class="text-lg font-bold text-gray-900">${order.name || ''}</h2>
-            <p class="text-xs text-gray-700 whitespace-pre-line">${order.address || ''}</p>
+            <h2 class="text-lg font-bold text-gray-900">${name}</h2>
+            <p class="text-xs text-gray-700 whitespace-pre-line">${address}</p>
             <div class="pt-2 flex flex-col gap-1 text-xs">
-              <p><strong>Primary Phone:</strong> ${order.phone1 || ''}</p>
-              <p><strong>Secondary Phone:</strong> ${order.phone2 || 'N/A'}</p>
+              <p><strong>Primary Phone:</strong> ${phone1}</p>
+              <p><strong>Secondary Phone:</strong> ${phone2}</p>
               <p class="mt-1"><strong>Order Ref:</strong> ${invNo}</p>
             </div>
           </div>
@@ -846,10 +863,10 @@
             <p class="text-amber-950 font-bold text-[11px] border-b border-amber-200 pb-1 mb-1 uppercase tracking-wide">Collect Cash Breakdown</p>
             <table class="w-full text-xs text-right">
               <tr><td class="text-gray-600 font-medium">Total:</td><td class="pl-2 font-semibold">LKR ${itemsDiscountedTotal.toFixed(2)}</td></tr>
-              <tr><td class="text-gray-600 font-medium">Delivery:</td><td class="pl-2 font-semibold">LKR ${parseFloat(order.deliveryCost || 0).toFixed(2)}</td></tr>
+              <tr><td class="text-gray-600 font-medium">Delivery:</td><td class="pl-2 font-semibold">LKR ${deliveryCostVal.toFixed(2)}</td></tr>
               <tr class="border-t border-amber-300 text-amber-950 font-extrabold text-sm">
                 <td class="pt-1">Grand Total:</td>
-                <td class="pt-1 pl-2 text-amber-900">LKR ${parseFloat(order.grandTotal || 0).toFixed(2)}</td>
+                <td class="pt-1 pl-2 text-amber-900">LKR ${grandTotalVal.toFixed(2)}</td>
               </tr>
             </table>
           </div>
@@ -869,7 +886,7 @@
         a.href = url;
         a.download = `LABEL-${invNo}.pdf`;
         a.click();
-        const cleanPhone = (order.phone1 || '').replace(/[^0-9]/g, '');
+        const cleanPhone = phone1.replace(/[^0-9]/g, '');
         window.open(`https://wa.me/${cleanPhone}?text=Delivery%20label%20for%20order%20${invNo}`, '_blank');
       }
     }
