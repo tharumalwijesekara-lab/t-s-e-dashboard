@@ -57,11 +57,6 @@
               </div>
               <textarea id="custAddress" placeholder="Delivery Address" class="w-full border p-3 rounded h-20" required></textarea>
 
-              <div>
-                <label class="text-xs font-semibold text-amber-900">COD Tracking Number (Optional):</label>
-                <input type="text" id="trackingNoInput" placeholder="e.g. TRK12345678" class="w-full border p-2 rounded mt-1">
-              </div>
-
               <div class="border-t pt-4 space-y-3">
                 <div class="flex justify-between items-center">
                   <h3 class="font-semibold text-amber-900">Items & Photos</h3>
@@ -288,6 +283,16 @@
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi9XxpdFjsvRRPwHl0RGY6wiizgJuyRk6r7jM7UgPeXDZoVQ_JD7rTFDZizwQcyzSX/exec";
     let cachedSheetData = [];
 
+    // Initialize logo from storage on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const storedLogo = localStorage.getItem('sareeEmbassyLogo');
+      if (storedLogo) {
+        document.getElementById('brandLogo').src = storedLogo;
+      }
+      addItemRow();
+      initAnalyticsCharts();
+    });
+
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.getElementById('tab-' + tabId)?.classList.remove('hidden');
@@ -352,8 +357,9 @@
 
       let maxSeq = 0;
       cachedSheetData.forEach(item => {
-        if (item.invNo && String(item.invNo).startsWith(datePrefix)) {
-          const seq = parseInt(String(item.invNo).slice(-3), 10);
+        const inv = item.invNo || item.invoiceNo || '';
+        if (inv && String(inv).startsWith(datePrefix)) {
+          const seq = parseInt(String(inv).slice(-3), 10);
           if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
         }
       });
@@ -383,9 +389,9 @@
         items = [{
           name: itemData.itemsSummary || 'Saree Item',
           origPrice: parseFloat(itemData.subtotal) || parseFloat(itemData.grandTotal) || 0,
-          discPrice: (parseFloat(itemData.grandTotal) - (parseFloat(itemData.deliveryCost) || 0)) || 0,
+          discPrice: parseFloat(itemData.grandTotal) - (parseFloat(itemData.deliveryCost) || 0) || 0,
           qty: 1,
-          imgSrc: itemData.photoUrl || ''
+          imgSrc: itemData.photoBase64 || itemData.photoUrl || ''
         }];
       }
       return items;
@@ -398,7 +404,6 @@
       const phone1 = document.getElementById('custPhone1').value;
       const phone2 = document.getElementById('custPhone2').value || 'N/A';
       const address = document.getElementById('custAddress').value;
-      const trackingNo = document.getElementById('trackingNoInput').value || '';
       const deliveryCost = parseFloat(document.getElementById('deliveryCostInput').value) || 0;
       const manualCod = parseFloat(document.getElementById('codAmountInput').value) || 0;
 
@@ -469,13 +474,24 @@
 
       saveInvoiceToSheet({
         action: document.getElementById('editingInvNo').value ? "updateOrder" : "addOrder",
-        invNo: invNum, date: today, name, phone1, phone2, address, trackingNo,
+        invNo: invNum, date: today, name, phone1, phone2, address,
         itemsSummary: itemsSummaryText.join(", "),
         photoBase64, subtotal: subtotalOrig, discount: totalDiscount,
         deliveryCost, grandTotal: finalGrandTotal, codAmount,
         paymentStatus: "Pending",
         rawItemsJson: JSON.stringify(rawItemsArr)
       });
+    }
+
+    function saveInvoiceToSheet(payload) {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).then(() => {
+        alert("Order synchronized with Google Sheets successfully!");
+      }).catch(err => console.error("Error saving order:", err));
     }
 
     function downloadElementPDF(elementId, filename, format = 'a4', orientation = 'p') {
@@ -581,7 +597,9 @@
               <th class="p-3 text-right">Total</th>
             </tr>
           </thead>
-          <tbody>${itemsRowsHtml}</tbody>
+          <tbody>
+            ${itemsRowsHtml}
+          </tbody>
         </table>
 
         <div class="flex justify-end pt-2">
@@ -595,361 +613,316 @@
       `;
 
       document.body.appendChild(tempDiv);
-      await new Promise(resolve => setTimeout(resolve, 150));
+      
+      const images = tempDiv.querySelectorAll('img');
+      const loadPromises = Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+      });
+      await Promise.all(loadPromises);
 
-      try {
-        const pdfBlob = await generatePdfBlob(tempDiv, 'a4', 'p');
-        document.body.removeChild(tempDiv);
-        return pdfBlob;
-      } catch (err) {
-        if (document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
-        throw err;
-      }
-    }
-
-    async function sharePdfWithWhatsApp(filename, messageText, pdfBlob) {
-      try {
-        const file = new File([pdfBlob], `${filename}.pdf`, { type: 'application/pdf' });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: filename, text: messageText });
-        } else {
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(pdfBlob);
-          link.download = `${filename}.pdf`;
-          link.click();
-          alert('PDF downloaded! Opening WhatsApp to attach file...');
-          window.open(`https://wa.me/?text=${encodeURIComponent(messageText)}`, '_blank');
-        }
-      } catch (err) {
-        console.error("Sharing failed:", err);
-      }
+      const pdfBlob = await generatePdfBlob(tempDiv, 'a4', 'p');
+      document.body.removeChild(tempDiv);
+      return pdfBlob;
     }
 
     async function shareWhatsAppPDF() {
       const invNo = document.getElementById('invNo').innerText;
-      const custName = document.getElementById('invCustomer').innerText;
-      const total = document.getElementById('invGrandTotal').innerText;
+      const phone = document.getElementById('invPhone1').innerText;
+      if (!invNo || invNo === '---') return alert('Please generate an invoice first!');
 
-      // Render directly from the live visible HTML element `#invoiceCard` to ensure 100% complete accuracy
-      const pdfBlob = await generatePdfBlob(document.getElementById('invoiceCard'), 'a4', 'p');
-      const message = `Hello ${custName},\n\nThank you for shopping with *The Saree Embassy*!\n\nYour invoice (*${invNo}*) for LKR ${total} is attached below.`;
-      await sharePdfWithWhatsApp(`Invoice-${invNo}`, message, pdfBlob);
+      const element = document.getElementById('invoiceCard');
+      const blob = await generatePdfBlob(element, 'a4', 'p');
+      const file = new File([blob], `Invoice-${invNo}.pdf`, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: `Invoice ${invNo}`,
+          text: `Here is your invoice ${invNo} from The Saree Embassy.`
+        }).catch(err => console.log('Sharing failed:', err));
+      } else {
+        downloadElementPDF('invoiceCard', invNo);
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        window.open(`https://wa.me/${cleanPhone}?text=Dear%20customer,%20your%20invoice%20${invNo}%20has%20been%20downloaded%20to%20your%20device.%20Thank%20you!`, '_blank');
+      }
     }
 
     async function shareLabelWhatsApp() {
       const invNo = document.getElementById('lblInvNo').innerText;
-      const custName = document.getElementById('lblCustName').innerText;
-      const address = document.getElementById('lblAddress').innerText;
-      const total = document.getElementById('lblSubtotal').innerText;
-      const del = document.getElementById('lblDelivery').innerText;
-      const grandTotal = document.getElementById('lblGrandTotal').innerText;
+      const phone = document.getElementById('lblPhone1').innerText;
+      if (!invNo || invNo === '---') return alert('Please generate an order first!');
 
-      const pdfBlob = await generatePdfBlob(document.getElementById('deliveryLabelCard'), 'a5', 'l');
-      const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${invNo}\nCustomer: ${custName}\nAddress: ${address}\n\n*Cash Collection Breakdown:*\nTotal: LKR ${total}\nDelivery: LKR ${del}\n*Grand Total: LKR ${grandTotal}*`;
-      await sharePdfWithWhatsApp(`LABEL-${invNo}`, message, pdfBlob);
-    }
+      const element = document.getElementById('deliveryLabelCard');
+      const blob = await generatePdfBlob(element, 'a5', 'l');
+      const file = new File([blob], `LABEL-${invNo}.pdf`, { type: 'application/pdf' });
 
-    async function shareDirectoryInvoiceWA(invNo) {
-      try {
-        const item = cachedSheetData.find(d => String(d.invNo).trim() === String(invNo).trim());
-        if (!item) {
-          alert("Order not found!");
-          return;
-        }
-
-        const pdfBlob = await renderInvoiceDivAndGetBlob(item);
-        const grandTotalVal = parseFloat(item.grandTotal || 0).toLocaleString();
-        const message = `Hello ${item.name || 'Customer'},\n\nThank you for shopping with *The Saree Embassy*!\n\nInvoice Ref: *${item.invNo}*\nItems: ${item.itemsSummary || 'Saree Order'}\nTotal Amount: *LKR ${grandTotalVal}*`;
-        
-        await sharePdfWithWhatsApp(`Invoice-${item.invNo}`, message, pdfBlob);
-      } catch (err) {
-        console.error("Directory Invoice PDF Error:", err);
-        alert(`Could not generate PDF for Invoice #${invNo}. Please check browser console.`);
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: `Delivery Label ${invNo}`,
+          text: `Delivery label for order ${invNo}.`
+        }).catch(err => console.log('Sharing failed:', err));
+      } else {
+        downloadElementPDF('deliveryLabelCard', `LABEL-${invNo}`, 'a5', 'l');
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        window.open(`https://wa.me/${cleanPhone}?text=Delivery%20label%20for%20order%20${invNo}`, '_blank');
       }
     }
 
-    async function shareDirectoryLabelWA(invNo) {
-      try {
-        const item = cachedSheetData.find(d => String(d.invNo).trim() === String(invNo).trim());
-        if (!item) {
-          alert("Order not found!");
-          return;
-        }
+    function renderCustomers() {
+      const tbody = document.getElementById('customerTableBody');
+      tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-amber-700 font-medium">Fetching orders from Google Sheets...</td></tr>';
 
-        const delivery = parseFloat(item.deliveryCost || 0);
-        const grandTotal = parseFloat(item.grandTotal || 0);
-        const itemsTotal = grandTotal - delivery;
+      fetch(GOOGLE_SCRIPT_URL)
+        .then(res => res.json())
+        .then(data => {
+          cachedSheetData = data || [];
+          if (!cachedSheetData.length) {
+            tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-amber-700">No orders found in database.</td></tr>';
+            return;
+          }
 
-        const tempDiv = document.createElement('div');
-        tempDiv.className = 'delivery-label-canvas border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4 shadow-md shrink-0';
-        
-        tempDiv.style.position = 'fixed';
-        tempDiv.style.top = '0';
-        tempDiv.style.left = '-2000px';
-        tempDiv.style.width = '680px';
-        tempDiv.style.zIndex = '-9999';
+          tbody.innerHTML = '';
+          cachedSheetData.forEach(item => {
+            const invNo = item.invNo || item.invoiceNo || '---';
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-amber-50/50 transition text-xs border-b border-amber-100";
 
-        tempDiv.innerHTML = `
-          <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-center">
-            <div>
-              <h3 class="text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
-              <p class="text-xs text-gray-600">NO. 420/5A/01, Kadawatha Road, Ganemulla | WhatsApp: 0702394119</p>
-            </div>
-            <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase">COD</span>
-          </div>
+            tr.innerHTML = `
+              <td class="p-3 font-bold text-amber-950">${invNo}</td>
+              <td class="p-3 text-gray-600">${item.date || '---'}</td>
+              <td class="p-3 font-semibold text-gray-800">${item.name || '---'}</td>
+              <td class="p-3">
+                <p><strong>P1:</strong> ${item.phone1 || '---'}</p>
+                <p><strong>P2:</strong> ${item.phone2 || '---'}</p>
+                <p class="text-[11px] text-gray-500 max-w-xs truncate">${item.address || '---'}</p>
+              </td>
+              <td class="p-3">
+                <div class="flex items-center gap-1">
+                  <input type="text" id="track-${invNo}" value="${item.trackingNo || ''}" placeholder="Tracking No" class="border p-1 rounded text-xs w-28 border-amber-200">
+                  <button onclick="saveTracking('${invNo}')" class="bg-amber-800 text-white px-2 py-1 rounded text-[10px]">Save</button>
+                </div>
+              </td>
+              <td class="p-3">
+                ${item.photoBase64 ? `<img src="${item.photoBase64}" class="saree-img-box">` : '<span class="text-gray-400">No Photo</span>'}
+              </td>
+              <td class="p-3 max-w-xs text-gray-700">${item.itemsSummary || '---'}</td>
+              <td class="p-3">
+                <p><strong>Total:</strong> LKR ${parseFloat(item.grandTotal || 0).toFixed(2)}</p>
+                <p class="text-amber-900 font-semibold"><strong>COD:</strong> LKR ${parseFloat(item.codAmount || item.grandTotal || 0).toFixed(2)}</p>
+              </td>
+              <td class="p-3">
+                <select onchange="updatePaymentStatus('${invNo}', this.value)" class="border p-1 rounded text-xs bg-white text-amber-900 border-amber-300">
+                  <option value="Pending" ${item.paymentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                  <option value="Paid" ${item.paymentStatus === 'Paid' ? 'selected' : ''}>Paid</option>
+                  <option value="Cancelled" ${item.paymentStatus === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                </select>
+              </td>
+              <td class="p-3 text-center">
+                <div class="flex flex-col gap-1 items-center">
+                  <button onclick="editOrder('${invNo}')" class="w-20 bg-amber-800 text-white px-2 py-1 rounded text-[11px] font-medium hover:bg-amber-900">Edit</button>
+                  <button onclick="directShareWAInvoice('${invNo}')" class="w-20 bg-emerald-600 text-white px-2 py-1 rounded text-[11px] font-medium hover:bg-emerald-700">WA Invoice</button>
+                  <button onclick="directShareWALabel('${invNo}')" class="w-20 bg-emerald-700 text-white px-2 py-1 rounded text-[11px] font-medium hover:bg-emerald-800">WA Label</button>
+                  <button onclick="deleteOrder('${invNo}')" class="w-20 bg-red-600 text-white px-2 py-1 rounded text-[11px] font-medium hover:bg-red-700">Delete</button>
+                </div>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        })
+        .catch(err => {
+          console.error("Fetch error:", err);
+          tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-red-600">Failed to load orders from Google Sheets.</td></tr>';
+        });
+    }
 
-          <div class="flex flex-row gap-4">
-            <div class="w-7/12 space-y-2">
-              <p class="text-[11px] text-gray-500 font-bold uppercase">DELIVER TO:</p>
-              <h2 class="text-lg font-bold text-gray-900">${item.name || ''}</h2>
-              <p class="text-xs text-gray-700 whitespace-pre-line">${item.address || ''}</p>
-              <div class="pt-2 flex flex-col gap-1 text-xs">
-                <p><strong>Primary Phone:</strong> ${item.phone1 || ''}</p>
-                <p><strong>Secondary Phone:</strong> ${item.phone2 || 'N/A'}</p>
-                <p class="mt-1"><strong>Order Ref:</strong> ${item.invNo || ''}</p>
-                ${item.trackingNo ? `<p><strong>Tracking No:</strong> ${item.trackingNo}</p>` : ''}
-              </div>
-            </div>
-            <div class="w-5/12 flex items-center justify-center">
-              <div class="cod-sticker-area">
-                <p class="text-xs text-amber-900 font-bold">PLACE COD STICKER HERE<br><span class="text-[10px] text-amber-700 font-normal">(1.5" × 3" Box)</span></p>
-              </div>
-            </div>
-          </div>
+    function saveTracking(invNo) {
+      const trackingNo = document.getElementById(`track-${invNo}`).value;
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "updateTracking", invNo, trackingNo })
+      }).then(() => alert("Tracking Number Updated!"));
+    }
 
-          <div class="border-t-2 border-dashed border-gray-300 pt-3 flex justify-between items-center text-xs">
-            <p class="text-gray-500 text-[11px]">Please verify details before handover to courier.</p>
-            <div class="text-right bg-[#fffbeb] p-3 rounded border border-amber-300 min-w-[210px]">
-              <p class="text-amber-950 font-bold text-[11px] border-b border-amber-200 pb-1 mb-1 uppercase tracking-wide">Collect Cash Breakdown</p>
-              <table class="w-full text-xs text-right">
-                <tr>
-                  <td class="text-gray-600 font-medium">Total:</td>
-                  <td class="pl-2 font-semibold">LKR ${itemsTotal.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td class="text-gray-600 font-medium">Delivery:</td>
-                  <td class="pl-2 font-semibold">LKR ${delivery.toLocaleString()}</td>
-                </tr>
-                <tr class="border-t border-amber-300 text-amber-950 font-extrabold text-sm">
-                  <td class="pt-1">Grand Total:</td>
-                  <td class="pt-1 pl-2 text-amber-900">LKR ${grandTotal.toLocaleString()}</td>
-                </tr>
-              </table>
-            </div>
-          </div>
-        `;
-
-        document.body.appendChild(tempDiv);
-        await new Promise(resolve => setTimeout(resolve, 150));
-
-        const pdfBlob = await generatePdfBlob(tempDiv, 'a5', 'l');
-        document.body.removeChild(tempDiv);
-
-        const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${item.invNo}\nCustomer: ${item.name}\nPhone: ${item.phone1}${item.phone2 ? ' / ' + item.phone2 : ''}\nAddress: ${item.address}\nTracking No: ${item.trackingNo || 'N/A'}\n\n*Collect Cash Breakdown:*\nTotal: LKR ${itemsTotal.toLocaleString()}\nDelivery: LKR ${delivery.toLocaleString()}\n*Grand Total: LKR ${grandTotal.toLocaleString()}*`;
-        await sharePdfWithWhatsApp(`LABEL-${item.invNo}`, message, pdfBlob);
-      } catch (err) {
-        console.error("Directory Label PDF Error:", err);
-        alert(`Could not generate label for Invoice #${invNo}. Please check browser console.`);
-      }
+    function updatePaymentStatus(invNo, status) {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "updateStatus", invNo, paymentStatus: status })
+      }).then(() => alert("Payment status updated!"));
     }
 
     function editOrder(invNo) {
-      const item = cachedSheetData.find(d => String(d.invNo).trim() === String(invNo).trim());
-      if (!item) {
-        alert("Order details not found.");
-        return;
-      }
-
-      document.getElementById('editingInvNo').value = item.invNo;
-      document.getElementById('orderTabTitle').innerText = `Editing Order: ${item.invNo}`;
-      document.getElementById('editingNotice').innerText = `Modifying order under Invoice #${item.invNo}`;
-
-      document.getElementById('custName').value = item.name || '';
-      document.getElementById('custPhone1').value = item.phone1 || '';
-      document.getElementById('custPhone2').value = (item.phone2 === 'N/A' || !item.phone2) ? '' : item.phone2;
-      document.getElementById('custAddress').value = item.address || '';
-      document.getElementById('trackingNoInput').value = item.trackingNo || '';
-      document.getElementById('deliveryCostInput').value = item.deliveryCost !== undefined ? item.deliveryCost : 350;
-      document.getElementById('codAmountInput').value = item.codAmount !== undefined ? item.codAmount : 0;
-
-      const container = document.getElementById('itemsContainer');
-      container.innerHTML = "";
-
-      const rawItems = parseItems(item);
-      rawItems.forEach(it => addItemRow(it));
+      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo) === invNo);
+      if (!order) return alert('Order not found!');
 
       switchTab('orders');
+      document.getElementById('editingInvNo').value = invNo;
+      document.getElementById('orderTabTitle').innerText = `Editing Order: ${invNo}`;
+      document.getElementById('editingNotice').innerText = "(Modifying existing sheet row on submit)";
+
+      document.getElementById('custName').value = order.name || '';
+      document.getElementById('custPhone1').value = order.phone1 || '';
+      document.getElementById('custPhone2').value = order.phone2 || '';
+      document.getElementById('custAddress').value = order.address || '';
+      document.getElementById('deliveryCostInput').value = order.deliveryCost || 350;
+      document.getElementById('codAmountInput').value = order.codAmount || 0;
+
+      const container = document.getElementById('itemsContainer');
+      container.innerHTML = '';
+
+      const items = parseItems(order);
+      items.forEach(it => addItemRow(it));
     }
 
-    async function deleteOrder(invNo) {
-      if (!confirm(`Are you sure you want to delete Invoice #${invNo}? This action cannot be undone.`)) {
-        return;
-      }
+    async function directShareWAInvoice(invNo) {
+      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo) === invNo);
+      if (!order) return alert('Order details not found.');
 
-      try {
-        await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'cors',
-          redirect: 'follow',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'deleteOrder', invNo })
-        });
-        alert(`Invoice #${invNo} deleted successfully.`);
+      const pdfBlob = await renderInvoiceDivAndGetBlob(order);
+      const file = new File([pdfBlob], `Invoice-${invNo}.pdf`, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: `Invoice ${invNo}`,
+          text: `Invoice ${invNo} from The Saree Embassy`
+        }).catch(err => console.log('Sharing failed:', err));
+      } else {
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Invoice-${invNo}.pdf`;
+        a.click();
+        const cleanPhone = (order.phone1 || '').replace(/[^0-9]/g, '');
+        window.open(`https://wa.me/${cleanPhone}?text=Dear%20customer,%20your%20invoice%20${invNo}%20has%20been%20downloaded.%20Thank%20you!`, '_blank');
+      }
+    }
+
+    async function directShareWALabel(invNo) {
+      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo) === invNo);
+      if (!order) return alert('Order details not found.');
+
+      const tempDiv = document.createElement('div');
+      tempDiv.className = 'delivery-label-canvas border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4 shadow-md shrink-0';
+      tempDiv.style.position = 'fixed';
+      tempDiv.style.top = '0';
+      tempDiv.style.left = '-2000px';
+
+      const itemsDiscountedTotal = (parseFloat(order.grandTotal) || 0) - (parseFloat(order.deliveryCost) || 0);
+
+      tempDiv.innerHTML = `
+        <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-center">
+          <div>
+            <h3 class="text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
+            <p class="text-xs text-gray-600">NO. 420/5A/01, Kadawatha Road, Ganemulla | WhatsApp: 0702394119</p>
+          </div>
+          <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase">COD</span>
+        </div>
+        <div class="flex flex-row gap-4">
+          <div class="w-7/12 space-y-2">
+            <p class="text-[11px] text-gray-500 font-bold uppercase">DELIVER TO:</p>
+            <h2 class="text-lg font-bold text-gray-900">${order.name || ''}</h2>
+            <p class="text-xs text-gray-700 whitespace-pre-line">${order.address || ''}</p>
+            <div class="pt-2 flex flex-col gap-1 text-xs">
+              <p><strong>Primary Phone:</strong> ${order.phone1 || ''}</p>
+              <p><strong>Secondary Phone:</strong> ${order.phone2 || 'N/A'}</p>
+              <p class="mt-1"><strong>Order Ref:</strong> ${invNo}</p>
+            </div>
+          </div>
+          <div class="w-5/12 flex items-center justify-center">
+            <div class="cod-sticker-area">
+              <p class="text-xs text-amber-900 font-bold">PLACE COD STICKER HERE<br><span class="text-[10px] text-amber-700 font-normal">(1.5" × 3" Box)</span></p>
+            </div>
+          </div>
+        </div>
+        <div class="border-t-2 border-dashed border-gray-300 pt-3 flex justify-between items-center text-xs">
+          <p class="text-gray-500 text-[11px]">Please verify details before handover to courier.</p>
+          <div class="text-right bg-[#fffbeb] p-3 rounded border border-amber-300 min-w-[210px]">
+            <p class="text-amber-950 font-bold text-[11px] border-b border-amber-200 pb-1 mb-1 uppercase tracking-wide">Collect Cash Breakdown</p>
+            <table class="w-full text-xs text-right">
+              <tr><td class="text-gray-600 font-medium">Total:</td><td class="pl-2 font-semibold">LKR ${itemsDiscountedTotal.toFixed(2)}</td></tr>
+              <tr><td class="text-gray-600 font-medium">Delivery:</td><td class="pl-2 font-semibold">LKR ${parseFloat(order.deliveryCost || 0).toFixed(2)}</td></tr>
+              <tr class="border-t border-amber-300 text-amber-950 font-extrabold text-sm">
+                <td class="pt-1">Grand Total:</td>
+                <td class="pt-1 pl-2 text-amber-900">LKR ${parseFloat(order.grandTotal || 0).toFixed(2)}</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(tempDiv);
+      const pdfBlob = await generatePdfBlob(tempDiv, 'a5', 'l');
+      document.body.removeChild(tempDiv);
+
+      const file = new File([pdfBlob], `LABEL-${invNo}.pdf`, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: `Delivery Label ${invNo}` }).catch(err => console.log('Sharing failed:', err));
+      } else {
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `LABEL-${invNo}.pdf`;
+        a.click();
+        const cleanPhone = (order.phone1 || '').replace(/[^0-9]/g, '');
+        window.open(`https://wa.me/${cleanPhone}?text=Delivery%20label%20for%20order%20${invNo}`, '_blank');
+      }
+    }
+
+    function deleteOrder(invNo) {
+      if (!confirm(`Are you sure you want to delete invoice ${invNo}?`)) return;
+
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deleteOrder", invNo })
+      }).then(() => {
+        alert("Order deleted successfully!");
         renderCustomers();
-      } catch (err) {
-        alert("Failed to delete order.");
-      }
+      });
     }
 
-    async function updateTrackingNo(invNo, trackingNo) {
-      try {
-        await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'cors',
-          redirect: 'follow',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'updateTracking', invNo, trackingNo })
-        });
-        const cached = cachedSheetData.find(d => String(d.invNo).trim() === String(invNo).trim());
-        if (cached) cached.trackingNo = trackingNo;
-      } catch (err) {
-        console.error("Tracking update error:", err);
-      }
-    }
-
-    async function renderCustomers() {
-      const custTbody = document.getElementById('customerTableBody');
-      if (!custTbody) return;
-
-      custTbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-amber-800 font-semibold">Loading Google Sheet data...</td></tr>`;
-
-      try {
-        const res = await fetch(GOOGLE_SCRIPT_URL, { method: "GET", redirect: "follow" });
-        const data = await res.json();
-
-        if (!Array.isArray(data) || data.length === 0) {
-          custTbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-amber-700">No orders found.</td></tr>`;
-          return;
-        }
-
-        cachedSheetData = data;
-        custTbody.innerHTML = "";
-
-        data.forEach(item => {
-          const invNoStr = String(item.invNo || '').trim();
-          const row = document.createElement("tr");
-          row.className = "border-b border-amber-100 hover:bg-amber-50/50 text-amber-900";
-          
-          row.innerHTML = `
-            <td class="p-3 font-bold">${invNoStr}</td>
-            <td class="p-3 whitespace-nowrap">${item.date || ''}</td>
-            <td class="p-3 font-medium">${item.name || ''}</td>
-            <td class="p-3 text-xs whitespace-pre-line">${item.phone1 || ''}${item.phone2 && item.phone2 !== 'N/A' ? '\n' + item.phone2 : ''}\n${item.address || ''}</td>
-            <td class="p-3 text-xs">
-              <div class="flex items-center space-x-1">
-                <input type="text" value="${item.trackingNo || ''}" placeholder="Tracking No" id="trK_${invNoStr}" class="border border-amber-300 rounded p-1 text-xs w-28 bg-white focus:outline-none focus:ring-1 focus:ring-amber-800">
-                <button onclick="updateTrackingNo('${invNoStr}', document.getElementById('trK_${invNoStr}').value); this.innerText='Saved!'; setTimeout(()=>this.innerText='Save',1200);" class="bg-amber-800 text-white text-[10px] px-2 py-1 rounded hover:bg-amber-900">Save</button>
-              </div>
-            </td>
-            <td class="p-3 text-xs">
-              ${item.photoUrl ? `<a href="${item.photoUrl}" target="_blank" class="text-amber-800 font-bold underline">View Photo</a>` : '<span class="text-gray-400">No Photo</span>'}
-            </td>
-            <td class="p-3 text-xs">${item.itemsSummary || ''}</td>
-            <td class="p-3 text-xs">
-              <p class="font-bold text-emerald-800">Total: LKR ${parseFloat(item.grandTotal || 0).toLocaleString()}</p>
-              <p>COD: LKR ${parseFloat(item.codAmount || 0).toLocaleString()}</p>
-            </td>
-            <td class="p-3">
-              <select onchange="updatePaymentStatus('${invNoStr}', this.value)" class="text-xs font-semibold p-1.5 rounded border ${item.paymentStatus === 'Completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}">
-                <option value="Pending" ${item.paymentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
-                <option value="Completed" ${item.paymentStatus === 'Completed' ? 'selected' : ''}>Completed</option>
-              </select>
-            </td>
-            <td class="p-3 text-center">
-              <div class="flex flex-col gap-1">
-                <button onclick="editOrder('${invNoStr}')" class="bg-amber-800 hover:bg-amber-900 text-white text-[11px] px-2 py-1 rounded">Edit</button>
-                <button onclick="shareDirectoryInvoiceWA('${invNoStr}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] px-2 py-0.5 rounded flex items-center justify-center gap-1">WA Invoice</button>
-                <button onclick="shareDirectoryLabelWA('${invNoStr}')" class="bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] px-2 py-0.5 rounded flex items-center justify-center gap-1">WA Label</button>
-                <button onclick="deleteOrder('${invNoStr}')" class="bg-red-600 hover:bg-red-700 text-white text-[10px] px-2 py-0.5 rounded">Delete</button>
-              </div>
-            </td>
-          `;
-          custTbody.appendChild(row);
-        });
-
-      } catch (err) {
-        console.error("Fetch Error:", err);
-        custTbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-red-600 font-semibold">Failed to fetch data from Google Sheets.</td></tr>`;
-      }
-    }
-
-    async function updatePaymentStatus(invNo, status) {
-      try {
-        await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'cors',
-          redirect: 'follow',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'updateStatus', invNo, paymentStatus: status })
-        });
-        const cached = cachedSheetData.find(d => String(d.invNo).trim() === String(invNo).trim());
-        if (cached) cached.paymentStatus = status;
-      } catch (err) {
-        alert("Failed to update payment status.");
-      }
-    }
-
-    async function saveInvoiceToSheet(payload) {
-      try {
-        await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'cors',
-          redirect: 'follow',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-        alert(`Order saved under Invoice #${payload.invNo}!`);
-        createNewOrder();
-        renderCustomers();
-      } catch (err) {
-        alert("Failed to save order.");
-      }
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedLogo = localStorage.getItem('sareeEmbassyLogo');
-      if (savedLogo) {
-        document.getElementById('brandLogo').src = savedLogo;
-      }
-
-      createNewOrder();
-      
-      const salesCtx = document.getElementById('salesChart')?.getContext('2d');
-      if (salesCtx) {
-        new Chart(salesCtx, {
+    function initAnalyticsCharts() {
+      const ctxSales = document.getElementById('salesChart')?.getContext('2d');
+      if (ctxSales) {
+        new Chart(ctxSales, {
           type: 'line',
           data: {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            datasets: [{ label: 'Sales (LKR)', data: [120000, 190000, 150000, 250000, 220000, 300000], borderColor: '#78350f', backgroundColor: 'rgba(120, 53, 15, 0.1)', fill: true }]
+            datasets: [{
+              label: 'Revenue (LKR)',
+              data: [120000, 190000, 300000, 250000, 220000, 310000],
+              borderColor: '#78350f',
+              backgroundColor: 'rgba(120, 53, 15, 0.1)',
+              fill: true,
+              tension: 0.3
+            }]
           },
           options: { responsive: true, maintainAspectRatio: false }
         });
       }
 
-      const fabricCtx = document.getElementById('fabricChart')?.getContext('2d');
-      if (fabricCtx) {
-        new Chart(fabricCtx, {
+      const ctxFabric = document.getElementById('fabricChart')?.getContext('2d');
+      if (ctxFabric) {
+        new Chart(ctxFabric, {
           type: 'doughnut',
           data: {
-            labels: ['Kanjeevaram', 'Banarasi', 'Tussar', 'Organza'],
-            datasets: [{ data: [40, 25, 20, 15], backgroundColor: ['#78350f', '#b45309', '#d97706', '#f59e0b'] }]
+            labels: ['Silk', 'Kanchipuram', 'Georgette', 'Cotton', 'Linen'],
+            datasets: [{
+              data: [35, 25, 20, 12, 8],
+              backgroundColor: ['#78350f', '#92400e', '#b45309', '#d97706', '#f59e0b']
+            }]
           },
           options: { responsive: true, maintainAspectRatio: false }
         });
       }
-    });
+    }
   </script>
-
 </body>
 </html>
