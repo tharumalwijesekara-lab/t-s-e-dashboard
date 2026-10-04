@@ -281,6 +281,14 @@
       if (tabId === 'customers') renderCustomers();
     }
 
+    function findCachedOrder(invNo) {
+      const targetInv = String(invNo).trim();
+      return cachedSheetData.find(item => {
+        const itemInv = String(item.invNo || item.invoiceNo || item['Invoice No'] || item['Inv No'] || '').trim();
+        return itemInv === targetInv;
+      });
+    }
+
     function addItemRow(data = null) {
       const container = document.getElementById('itemsContainer');
       const row = document.createElement('div');
@@ -682,7 +690,7 @@
 
           tbody.innerHTML = '';
           cachedSheetData.forEach(item => {
-            const invNo = item.invNo || item.invoiceNo || item['Invoice No'] || item['Inv No'] || '---';
+            const invNo = String(item.invNo || item.invoiceNo || item['Invoice No'] || item['Inv No'] || '---').trim();
             const date = item.date || item.Date || '---';
             const name = item.name || item.customerName || item['Customer Name'] || item.Customer || '---';
             const phone1 = item.phone1 || item.phone || item['Phone 1'] || '---';
@@ -766,7 +774,7 @@
     }
 
     function editOrder(invNo) {
-      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo || item['Invoice No']) === invNo);
+      const order = findCachedOrder(invNo);
       if (!order) return alert('Order not found!');
 
       switchTab('orders');
@@ -789,7 +797,7 @@
     }
 
     async function directShareWAInvoice(invNo) {
-      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo || item['Invoice No']) === invNo);
+      const order = findCachedOrder(invNo);
       if (!order) return alert('Order details not found.');
 
       const pdfBlob = await renderInvoiceDivAndGetBlob(order);
@@ -814,7 +822,7 @@
     }
 
     async function directShareWALabel(invNo) {
-      const order = cachedSheetData.find(item => (item.invNo || item.invoiceNo || item['Invoice No']) === invNo);
+      const order = findCachedOrder(invNo);
       if (!order) return alert('Order details not found.');
 
       const tempDiv = document.createElement('div');
