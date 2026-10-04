@@ -57,6 +57,11 @@
               </div>
               <textarea id="custAddress" placeholder="Delivery Address" class="w-full border p-3 rounded h-20" required></textarea>
 
+              <div>
+                <label class="text-xs font-semibold text-amber-900">COD Tracking Number (Optional):</label>
+                <input type="text" id="trackingNoInput" placeholder="e.g. TRK12345678" class="w-full border p-2 rounded mt-1">
+              </div>
+
               <div class="border-t pt-4 space-y-3">
                 <div class="flex justify-between items-center">
                   <h3 class="font-semibold text-amber-900">Items & Photos</h3>
@@ -260,6 +265,7 @@
                   <th class="p-3">Date</th>
                   <th class="p-3">Customer Name</th>
                   <th class="p-3">Phones & Address</th>
+                  <th class="p-3">COD Tracking No</th>
                   <th class="p-3">Saree Photo</th>
                   <th class="p-3">Items</th>
                   <th class="p-3">Totals & COD</th>
@@ -268,7 +274,7 @@
                 </tr>
               </thead>
               <tbody id="customerTableBody" class="divide-y divide-amber-100">
-                <tr><td colspan="9" class="p-6 text-center text-amber-700 font-medium">Click "Sync Now" to load data...</td></tr>
+                <tr><td colspan="10" class="p-6 text-center text-amber-700 font-medium">Click "Sync Now" to load data...</td></tr>
               </tbody>
             </table>
           </div>
@@ -377,7 +383,7 @@
         items = [{
           name: itemData.itemsSummary || 'Saree Item',
           origPrice: parseFloat(itemData.subtotal) || parseFloat(itemData.grandTotal) || 0,
-          discPrice: parseFloat(itemData.grandTotal) - (parseFloat(itemData.deliveryCost) || 0) || 0,
+          discPrice: (parseFloat(itemData.grandTotal) - (parseFloat(itemData.deliveryCost) || 0)) || 0,
           qty: 1,
           imgSrc: itemData.photoUrl || ''
         }];
@@ -392,6 +398,7 @@
       const phone1 = document.getElementById('custPhone1').value;
       const phone2 = document.getElementById('custPhone2').value || 'N/A';
       const address = document.getElementById('custAddress').value;
+      const trackingNo = document.getElementById('trackingNoInput').value || '';
       const deliveryCost = parseFloat(document.getElementById('deliveryCostInput').value) || 0;
       const manualCod = parseFloat(document.getElementById('codAmountInput').value) || 0;
 
@@ -462,7 +469,7 @@
 
       saveInvoiceToSheet({
         action: document.getElementById('editingInvNo').value ? "updateOrder" : "addOrder",
-        invNo: invNum, date: today, name, phone1, phone2, address,
+        invNo: invNum, date: today, name, phone1, phone2, address, trackingNo,
         itemsSummary: itemsSummaryText.join(", "),
         photoBase64, subtotal: subtotalOrig, discount: totalDiscount,
         deliveryCost, grandTotal: finalGrandTotal, codAmount,
@@ -624,41 +631,8 @@
       const custName = document.getElementById('invCustomer').innerText;
       const total = document.getElementById('invGrandTotal').innerText;
 
-      const rows = document.querySelectorAll('.item-row');
-      let rawItems = [];
-      let subtotalOrig = 0, itemsDiscountedTotal = 0;
-
-      rows.forEach(row => {
-        const sareeName = row.querySelector('.saree-name').value;
-        const origPrice = parseFloat(row.querySelector('.saree-orig-price').value) || 0;
-        const discPrice = parseFloat(row.querySelector('.saree-disc-price').value) || 0;
-        const qty = parseInt(row.querySelector('.saree-qty').value) || 1;
-        const imgBox = row.querySelector('.saree-img-box');
-
-        rawItems.push({ name: sareeName, origPrice, discPrice, qty, imgSrc: imgBox ? imgBox.src : '' });
-        subtotalOrig += (origPrice * qty);
-        itemsDiscountedTotal += (discPrice * qty);
-      });
-
-      const deliveryCost = parseFloat(document.getElementById('deliveryCostInput').value) || 0;
-      const totalDiscount = subtotalOrig - itemsDiscountedTotal;
-      const finalGrandTotal = itemsDiscountedTotal + deliveryCost;
-
-      const currentOrderData = {
-        invNo,
-        date: document.getElementById('invDate').innerText,
-        name: custName,
-        phone1: document.getElementById('invPhone1').innerText,
-        phone2: document.getElementById('invPhone2').innerText,
-        address: document.getElementById('invAddress').innerText,
-        subtotal: subtotalOrig,
-        discount: totalDiscount,
-        deliveryCost,
-        grandTotal: finalGrandTotal,
-        rawItems
-      };
-
-      const pdfBlob = await renderInvoiceDivAndGetBlob(currentOrderData);
+      // Render directly from the live visible HTML element `#invoiceCard` to ensure 100% complete accuracy
+      const pdfBlob = await generatePdfBlob(document.getElementById('invoiceCard'), 'a4', 'p');
       const message = `Hello ${custName},\n\nThank you for shopping with *The Saree Embassy*!\n\nYour invoice (*${invNo}*) for LKR ${total} is attached below.`;
       await sharePdfWithWhatsApp(`Invoice-${invNo}`, message, pdfBlob);
     }
@@ -734,6 +708,7 @@
                 <p><strong>Primary Phone:</strong> ${item.phone1 || ''}</p>
                 <p><strong>Secondary Phone:</strong> ${item.phone2 || 'N/A'}</p>
                 <p class="mt-1"><strong>Order Ref:</strong> ${item.invNo || ''}</p>
+                ${item.trackingNo ? `<p><strong>Tracking No:</strong> ${item.trackingNo}</p>` : ''}
               </div>
             </div>
             <div class="w-5/12 flex items-center justify-center">
@@ -771,7 +746,7 @@
         const pdfBlob = await generatePdfBlob(tempDiv, 'a5', 'l');
         document.body.removeChild(tempDiv);
 
-        const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${item.invNo}\nCustomer: ${item.name}\nPhone: ${item.phone1}${item.phone2 ? ' / ' + item.phone2 : ''}\nAddress: ${item.address}\n\n*Collect Cash Breakdown:*\nTotal: LKR ${itemsTotal.toLocaleString()}\nDelivery: LKR ${delivery.toLocaleString()}\n*Grand Total: LKR ${grandTotal.toLocaleString()}*`;
+        const message = `*COURIER DELIVERY LABEL DETAILS*\n\nOrder Ref: ${item.invNo}\nCustomer: ${item.name}\nPhone: ${item.phone1}${item.phone2 ? ' / ' + item.phone2 : ''}\nAddress: ${item.address}\nTracking No: ${item.trackingNo || 'N/A'}\n\n*Collect Cash Breakdown:*\nTotal: LKR ${itemsTotal.toLocaleString()}\nDelivery: LKR ${delivery.toLocaleString()}\n*Grand Total: LKR ${grandTotal.toLocaleString()}*`;
         await sharePdfWithWhatsApp(`LABEL-${item.invNo}`, message, pdfBlob);
       } catch (err) {
         console.error("Directory Label PDF Error:", err);
@@ -794,6 +769,7 @@
       document.getElementById('custPhone1').value = item.phone1 || '';
       document.getElementById('custPhone2').value = (item.phone2 === 'N/A' || !item.phone2) ? '' : item.phone2;
       document.getElementById('custAddress').value = item.address || '';
+      document.getElementById('trackingNoInput').value = item.trackingNo || '';
       document.getElementById('deliveryCostInput').value = item.deliveryCost !== undefined ? item.deliveryCost : 350;
       document.getElementById('codAmountInput').value = item.codAmount !== undefined ? item.codAmount : 0;
 
@@ -826,18 +802,34 @@
       }
     }
 
+    async function updateTrackingNo(invNo, trackingNo) {
+      try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'cors',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'updateTracking', invNo, trackingNo })
+        });
+        const cached = cachedSheetData.find(d => String(d.invNo).trim() === String(invNo).trim());
+        if (cached) cached.trackingNo = trackingNo;
+      } catch (err) {
+        console.error("Tracking update error:", err);
+      }
+    }
+
     async function renderCustomers() {
       const custTbody = document.getElementById('customerTableBody');
       if (!custTbody) return;
 
-      custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-amber-800 font-semibold">Loading Google Sheet data...</td></tr>`;
+      custTbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-amber-800 font-semibold">Loading Google Sheet data...</td></tr>`;
 
       try {
         const res = await fetch(GOOGLE_SCRIPT_URL, { method: "GET", redirect: "follow" });
         const data = await res.json();
 
         if (!Array.isArray(data) || data.length === 0) {
-          custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-amber-700">No orders found.</td></tr>`;
+          custTbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-amber-700">No orders found.</td></tr>`;
           return;
         }
 
@@ -854,6 +846,12 @@
             <td class="p-3 whitespace-nowrap">${item.date || ''}</td>
             <td class="p-3 font-medium">${item.name || ''}</td>
             <td class="p-3 text-xs whitespace-pre-line">${item.phone1 || ''}${item.phone2 && item.phone2 !== 'N/A' ? '\n' + item.phone2 : ''}\n${item.address || ''}</td>
+            <td class="p-3 text-xs">
+              <div class="flex items-center space-x-1">
+                <input type="text" value="${item.trackingNo || ''}" placeholder="Tracking No" id="trK_${invNoStr}" class="border border-amber-300 rounded p-1 text-xs w-28 bg-white focus:outline-none focus:ring-1 focus:ring-amber-800">
+                <button onclick="updateTrackingNo('${invNoStr}', document.getElementById('trK_${invNoStr}').value); this.innerText='Saved!'; setTimeout(()=>this.innerText='Save',1200);" class="bg-amber-800 text-white text-[10px] px-2 py-1 rounded hover:bg-amber-900">Save</button>
+              </div>
+            </td>
             <td class="p-3 text-xs">
               ${item.photoUrl ? `<a href="${item.photoUrl}" target="_blank" class="text-amber-800 font-bold underline">View Photo</a>` : '<span class="text-gray-400">No Photo</span>'}
             </td>
@@ -882,7 +880,7 @@
 
       } catch (err) {
         console.error("Fetch Error:", err);
-        custTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-red-600 font-semibold">Failed to fetch data from Google Sheets.</td></tr>`;
+        custTbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-red-600 font-semibold">Failed to fetch data from Google Sheets.</td></tr>`;
       }
     }
 
