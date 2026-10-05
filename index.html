@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Saree Embassy - Management Dashboard</title>
-  
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tailwind CSS CDN (pinned to a stable v3 build — avoids oklch() colors that html2canvas cannot render) -->
+  <script src="https://cdn.tailwindcss.com/3.4.1"></script>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- html2canvas & jsPDF CDNs -->
@@ -17,7 +17,7 @@
     .saree-img-box { width: 50px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #e5e7eb; }
     .brand-logo-box { width: 60px; height: 60px; object-fit: contain; }
     .cod-sticker-area { border: 2px dashed #b45309; border-radius: 6px; padding: 12px; text-align: center; background-color: #fffbeb; }
-    
+
     /* Clean print output fallback */
     @media print {
       .no-pdf { display: none !important; }
@@ -29,7 +29,7 @@
   <!-- Sidebar Navigation -->
   <aside class="w-full md:w-64 bg-amber-950 text-amber-50 flex flex-col p-4 shadow-xl shrink-0">
     <div class="flex items-center space-x-3 mb-8 px-2 border-b border-amber-900/50 pb-4">
-      <img id="brandLogo" src="https://via.placeholder.com/60?text=Logo" alt="Brand Logo" class="brand-logo-box bg-amber-50 rounded-lg p-1">
+      <img id="brandLogo" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Crect width='60' height='60' fill='%23fffbeb'/%3E%3Ctext x='30' y='34' font-family='Georgia,serif' font-size='11' fill='%2378350f' text-anchor='middle'%3ESE%3C/text%3E%3C/svg%3E" alt="Brand Logo" class="brand-logo-box bg-amber-50 rounded-lg p-1">
       <div>
         <h1 class="text-sm font-bold tracking-wider font-serif text-amber-200">THE SAREE EMBASSY</h1>
         <p class="text-[10px] text-amber-400">Business Dashboard</p>
@@ -56,7 +56,7 @@
 
   <!-- Main Content Area -->
   <main class="flex-1 p-4 md:p-8 overflow-x-hidden">
-    
+
     <!-- Tab 1: Orders & Invoicing -->
     <section id="tab-orders" class="tab-content space-y-6">
       <div class="flex justify-between items-center border-b pb-4 border-amber-200">
@@ -167,8 +167,8 @@
 
             <!-- Action buttons tagged with 'no-pdf' so they do NOT appear in exported PDFs -->
             <div class="flex gap-2 pt-2 border-t no-pdf">
-              <button onclick="downloadElementPDF('invoiceCard', document.getElementById('invNo').innerText)" class="flex-1 bg-stone-800 text-white py-1.5 rounded text-xs font-semibold hover:bg-stone-900">PDF Invoice</button>
-              <button onclick="shareWhatsAppPDF()" class="flex-1 bg-emerald-700 text-white py-1.5 rounded text-xs font-semibold hover:bg-emerald-800">WA Invoice</button>
+              <button type="button" onclick="downloadInvoicePDF()" class="flex-1 bg-stone-800 text-white py-1.5 rounded text-xs font-semibold hover:bg-stone-900">PDF Invoice</button>
+              <button type="button" onclick="shareInvoiceWhatsApp()" class="flex-1 bg-emerald-700 text-white py-1.5 rounded text-xs font-semibold hover:bg-emerald-800">WA Invoice</button>
             </div>
           </div>
 
@@ -206,8 +206,8 @@
 
             <!-- Action buttons tagged with 'no-pdf' -->
             <div class="flex gap-2 pt-1 no-pdf">
-              <button onclick="downloadElementPDF('deliveryLabelCard', 'LABEL-' + document.getElementById('lblInvNo').innerText, 'a5', 'l')" class="flex-1 bg-stone-800 text-white py-1.5 rounded text-xs font-semibold hover:bg-stone-900">PDF Label</button>
-              <button onclick="shareLabelWhatsApp()" class="flex-1 bg-emerald-700 text-white py-1.5 rounded text-xs font-semibold hover:bg-emerald-800">WA Label</button>
+              <button type="button" onclick="downloadLabelPDF()" class="flex-1 bg-stone-800 text-white py-1.5 rounded text-xs font-semibold hover:bg-stone-900">PDF Label</button>
+              <button type="button" onclick="shareLabelWhatsApp()" class="flex-1 bg-emerald-700 text-white py-1.5 rounded text-xs font-semibold hover:bg-emerald-800">WA Label</button>
             </div>
           </div>
         </div>
@@ -272,6 +272,10 @@
   <script>
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi9XxpdFjsvRRPwHl0RGY6wiizgJuyRk6r7jM7UgPeXDZoVQ_JD7rTFDZizwQcyzSX/exec";
     let cachedSheetData = [];
+    // Snapshot of the order currently shown in the Orders & Invoice preview,
+    // kept separate from the live (Tailwind-styled, responsive) preview cards
+    // so PDF/WhatsApp export always renders from fixed, known-good markup.
+    let currentOrderData = null;
 
     window.addEventListener('DOMContentLoaded', () => {
       const storedLogo = localStorage.getItem('sareeEmbassyLogo');
@@ -300,7 +304,7 @@
       const container = document.getElementById('itemsContainer');
       const row = document.createElement('div');
       row.className = 'item-row bg-[#fffbeb] p-3 rounded border border-amber-100 space-y-2 relative';
-      
+
       row.innerHTML = `
         <button type="button" onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-red-500 font-bold text-xs">✕</button>
         <input type="text" placeholder="Saree Name / Type" value="${data && data.name ? data.name : ''}" class="saree-name w-full border p-2 rounded text-xs" required>
@@ -369,6 +373,7 @@
       document.getElementById('orderTabTitle').innerText = "Create New Order";
       document.getElementById('editingNotice').innerText = "";
       document.getElementById('itemsContainer').innerHTML = "";
+      currentOrderData = null;
       addItemRow();
     }
 
@@ -474,14 +479,21 @@
       document.getElementById('lblDelivery').innerText = deliveryCost.toFixed(2);
       document.getElementById('lblGrandTotal').innerText = finalGrandTotal.toFixed(2);
 
-      saveInvoiceToSheet({
-        action: document.getElementById('editingInvNo').value ? "updateOrder" : "addOrder",
+      // Keep a clean snapshot for PDF / WhatsApp export — same shape as a
+      // cached Sheet row, so buildInvoiceDoc/buildLabelDoc work identically
+      // whether the order was just created here or loaded from the directory.
+      currentOrderData = {
         invNo: invNum, date: today, name, phone1, phone2, address,
         itemsSummary: itemsSummaryText.join(", "),
         photoBase64, subtotal: subtotalOrig, discount: totalDiscount,
         deliveryCost, grandTotal: finalGrandTotal, codAmount,
         paymentStatus: "Pending",
         rawItemsJson: JSON.stringify(rawItemsArr)
+      };
+
+      saveInvoiceToSheet({
+        action: document.getElementById('editingInvNo').value ? "updateOrder" : "addOrder",
+        ...currentOrderData
       });
     }
 
@@ -499,192 +511,314 @@
       }).catch(err => console.error("Error saving order:", err));
     }
 
-    // PDF Generator Helper (Hides '.no-pdf' elements during canvas snapshot)
-    async function generatePdfBlob(element, format = 'a4', orientation = 'p') {
-      const { jsPDF } = window.jspdf;
-      
-      const noPdfElements = element.querySelectorAll('.no-pdf');
-      noPdfElements.forEach(el => el.style.display = 'none');
+    // =====================================================================
+    // PDF generation
+    //
+    // PDFs are NEVER captured from the live, Tailwind-styled preview cards.
+    // Two reasons:
+    //  1. The Tailwind CDN build can emit oklch() colors that html2canvas
+    //     cannot parse, which silently drops backgrounds/text in the export.
+    //  2. The live cards are responsive, so what gets captured depends on
+    //     the screen/viewport width — "layout not adjusting" in the PDF.
+    //
+    // Instead, buildInvoiceDoc()/buildLabelDoc() build a detached, fixed-
+    // width element with plain inline CSS (no Tailwind classes at all), and
+    // generatePdfBlob() sizes the PDF page to exactly match that element's
+    // rendered pixel size — so nothing is ever cropped or rescaled.
+    // =====================================================================
 
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, logging: false });
-      
-      noPdfElements.forEach(el => el.style.display = '');
+    const PDF_FONT = "Arial, Helvetica, sans-serif";
+    const PDF_SERIF = "Georgia, 'Times New Roman', serif";
+    const PDF_BROWN = "#78350f";
+    const PDF_BROWN_DARK = "#451a03";
+    const PDF_AMBER_BG = "#fffbeb";
+    const PDF_AMBER_HEAD = "#fef3c7";
+    const PDF_BORDER = "#e7d9b8";
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF(orientation, 'mm', format);
-      const width = pdf.internal.pageSize.getWidth();
-      const height = (canvas.height * width) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, width, height);
-      return pdf.output('blob');
-    }
-
-    async function downloadElementPDF(elementId, filename, format = 'a4', orientation = 'p') {
-      const element = document.getElementById(elementId);
-      if (!element) return;
-      const pdfBlob = await generatePdfBlob(element, format, orientation);
-      const url = URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${filename}.pdf`;
-      a.click();
-    }
-
-    async function renderInvoiceDivAndGetBlob(invoiceData) {
-      const tempDiv = document.createElement('div');
-      tempDiv.className = 'pdf-render-canvas border p-8 rounded bg-white text-gray-800 space-y-6 shadow-md';
-      
-      tempDiv.style.position = 'fixed';
-      tempDiv.style.top = '0';
-      tempDiv.style.left = '-2000px';
-      tempDiv.style.width = '800px';
-      tempDiv.style.zIndex = '-9999';
-
+    function buildInvoiceDoc(data) {
       const logoSrc = localStorage.getItem('sareeEmbassyLogo') || '';
-      const rawItems = parseItems(invoiceData);
+      const rawItems = parseItems(data);
+
+      const invNo = data.invNo || '---';
+      const date = data.date || '';
+      const name = data.name || '';
+      const phone1 = data.phone1 || '';
+      const phone2 = data.phone2 || 'N/A';
+      const address = data.address || '';
+      const subtotalVal = parseFloat(data.subtotal) || 0;
+      const discountVal = parseFloat(data.discount) || 0;
+      const deliveryVal = parseFloat(data.deliveryCost) || 0;
+      const grandTotalVal = parseFloat(data.grandTotal) || 0;
 
       const itemsRowsHtml = rawItems.map(it => {
-        const imageHtml = (it.imgSrc && it.imgSrc.startsWith('data:image')) 
-          ? `<img src="${it.imgSrc}" class="saree-img-box">` 
+        const imageHtml = (it.imgSrc && it.imgSrc.startsWith('data:image'))
+          ? `<img src="${it.imgSrc}" style="width:50px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;margin-top:4px;display:block;">`
           : '';
-
+        const lineTotal = (parseFloat(it.discPrice || 0) * parseInt(it.qty || 1, 10)).toFixed(2);
         return `
-          <tr class="border-b">
-            <td class="p-3">
-              <p class="font-semibold text-gray-800">${it.name || 'Saree Item'}</p>
+          <tr>
+            <td style="padding:10px;border-bottom:1px solid #eee;vertical-align:top;">
+              <div style="font-weight:600;color:#1f2937;">${escapeHtml(it.name || 'Saree Item')}</div>
               ${imageHtml}
             </td>
-            <td class="p-3 text-gray-500 line-through">LKR ${parseFloat(it.origPrice || 0).toFixed(2)}</td>
-            <td class="p-3 font-semibold text-amber-900">LKR ${parseFloat(it.discPrice || 0).toFixed(2)}</td>
-            <td class="p-3 text-center">${it.qty || 1}</td>
-            <td class="p-3 text-right font-bold text-gray-800">LKR ${(parseFloat(it.discPrice || 0) * parseInt(it.qty || 1)).toFixed(2)}</td>
-          </tr>
-        `;
+            <td style="padding:10px;border-bottom:1px solid #eee;color:#6b7280;text-decoration:line-through;vertical-align:top;">LKR ${parseFloat(it.origPrice || 0).toFixed(2)}</td>
+            <td style="padding:10px;border-bottom:1px solid #eee;font-weight:600;color:${PDF_BROWN};vertical-align:top;">LKR ${parseFloat(it.discPrice || 0).toFixed(2)}</td>
+            <td style="padding:10px;border-bottom:1px solid #eee;text-align:center;vertical-align:top;">${it.qty || 1}</td>
+            <td style="padding:10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:#1f2937;vertical-align:top;">LKR ${lineTotal}</td>
+          </tr>`;
       }).join('');
 
-      const subtotalVal = parseFloat(invoiceData.subtotal) || parseFloat(invoiceData.grandTotal) || 0;
-      const discountVal = parseFloat(invoiceData.discount) || 0;
-      const deliveryVal = parseFloat(invoiceData.deliveryCost) || 0;
-      const grandTotalVal = parseFloat(invoiceData.grandTotal) || 0;
-
-      const invNo = invoiceData.invNo || invoiceData.invoiceNo || invoiceData['Invoice No'] || '---';
-      const date = invoiceData.date || invoiceData.Date || '';
-      const name = invoiceData.name || invoiceData.customerName || invoiceData['Customer Name'] || '';
-      const phone1 = invoiceData.phone1 || invoiceData.phone || invoiceData['Phone 1'] || '';
-      const phone2 = invoiceData.phone2 || invoiceData['Phone 2'] || 'N/A';
-      const address = invoiceData.address || invoiceData['Delivery Address'] || invoiceData.Address || '';
-
-      tempDiv.innerHTML = `
-        <div class="border-b pb-4 flex justify-between items-start">
-          <div class="flex items-start space-x-3 w-2/3">
-            ${logoSrc ? `<img src="${logoSrc}" class="brand-logo-box border border-amber-200 rounded p-1 bg-[#fffbeb]">` : ''}
+      const wrap = document.createElement('div');
+      wrap.style.cssText = `position:fixed;top:0;left:-3000px;width:750px;background:#ffffff;font-family:${PDF_FONT};color:#1f2937;box-sizing:border-box;padding:32px;`;
+      wrap.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #e5e7eb;padding-bottom:16px;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            ${logoSrc ? `<img src="${logoSrc}" style="width:60px;height:60px;object-fit:contain;border:1px solid ${PDF_BORDER};border-radius:6px;padding:4px;background:${PDF_AMBER_BG};">` : ''}
             <div>
-              <h4 class="text-xl font-bold font-serif text-amber-900">THE SAREE EMBASSY</h4>
-              <p class="text-xs text-gray-600 mt-1">NO. 420/5A/01, Kadawatha Road, Ganemulla</p>
-              <p class="text-xs text-gray-600">WhatsApp: 0702394119</p>
+              <div style="font-family:${PDF_SERIF};font-weight:700;font-size:22px;color:${PDF_BROWN};">THE SAREE EMBASSY</div>
+              <div style="font-size:12px;color:#4b5563;margin-top:4px;">NO. 420/5A/01, Kadawatha Road, Ganemulla</div>
+              <div style="font-size:12px;color:#4b5563;">WhatsApp: 0702394119</div>
             </div>
           </div>
-          <div class="text-right w-1/3">
-            <p class="text-sm font-bold text-amber-950">Invoice #: ${invNo}</p>
-            <p class="text-xs text-gray-600 mt-1">Date: ${date}</p>
+          <div style="text-align:right;">
+            <div style="font-size:14px;font-weight:700;color:${PDF_BROWN_DARK};">Invoice #: ${escapeHtml(String(invNo))}</div>
+            <div style="font-size:12px;color:#4b5563;margin-top:4px;">Date: ${escapeHtml(String(date))}</div>
           </div>
         </div>
 
-        <table class="w-full bg-[#fffbeb] p-4 rounded text-xs border border-amber-100">
+        <table style="width:100%;margin-top:16px;background:${PDF_AMBER_BG};border:1px solid ${PDF_BORDER};border-radius:6px;font-size:12px;border-collapse:collapse;">
           <tr>
-            <td class="w-1/2 align-top p-2">
-              <p><strong>Customer:</strong> ${name}</p>
-              <p class="mt-1"><strong>Phone 1:</strong> ${phone1}</p>
-              <p class="mt-1"><strong>Phone 2:</strong> ${phone2}</p>
+            <td style="width:50%;vertical-align:top;padding:12px;">
+              <div><strong>Customer:</strong> ${escapeHtml(name)}</div>
+              <div style="margin-top:4px;"><strong>Phone 1:</strong> ${escapeHtml(phone1)}</div>
+              <div style="margin-top:4px;"><strong>Phone 2:</strong> ${escapeHtml(phone2)}</div>
             </td>
-            <td class="w-1/2 align-top p-2">
-              <p><strong>Address:</strong></p>
-              <p class="text-gray-600 mt-1">${address}</p>
+            <td style="width:50%;vertical-align:top;padding:12px;">
+              <div><strong>Address:</strong></div>
+              <div style="color:#4b5563;margin-top:4px;white-space:pre-line;">${escapeHtml(address)}</div>
             </td>
           </tr>
         </table>
 
-        <table class="w-full text-left text-xs border-collapse">
+        <table style="width:100%;margin-top:16px;border-collapse:collapse;font-size:12px;">
           <thead>
-            <tr class="border-b bg-[#fef3c7] text-amber-900">
-              <th class="p-3 w-2/5">Item Details</th>
-              <th class="p-3">Original</th>
-              <th class="p-3">Discounted</th>
-              <th class="p-3 text-center">Qty</th>
-              <th class="p-3 text-right">Total</th>
+            <tr style="background:${PDF_AMBER_HEAD};color:${PDF_BROWN_DARK};">
+              <th style="padding:10px;text-align:left;width:40%;">Item Details</th>
+              <th style="padding:10px;text-align:left;">Original</th>
+              <th style="padding:10px;text-align:left;">Discounted</th>
+              <th style="padding:10px;text-align:center;">Qty</th>
+              <th style="padding:10px;text-align:right;">Total</th>
             </tr>
           </thead>
-          <tbody>
-            ${itemsRowsHtml}
-          </tbody>
+          <tbody>${itemsRowsHtml}</tbody>
         </table>
 
-        <div class="flex justify-end pt-2">
-          <table class="w-1/2 text-right text-xs space-y-1">
-            <tr><td class="py-1"><strong>Subtotal:</strong></td><td class="py-1 pl-4">LKR ${subtotalVal.toFixed(2)}</td></tr>
-            <tr class="text-emerald-700"><td class="py-1"><strong>Discount Saved:</strong></td><td class="py-1 pl-4">LKR ${discountVal.toFixed(2)}</td></tr>
-            <tr><td class="py-1"><strong>Delivery:</strong></td><td class="py-1 pl-4">LKR ${deliveryVal.toFixed(2)}</td></tr>
-            <tr class="text-sm font-bold text-amber-950 border-t"><td class="pt-2">Grand Total:</td><td class="pt-2 pl-4">LKR ${grandTotalVal.toFixed(2)}</td></tr>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+          <table style="width:50%;font-size:12px;border-collapse:collapse;">
+            <tr><td style="padding:3px 0;text-align:right;"><strong>Subtotal:</strong></td><td style="padding:3px 0 3px 16px;text-align:right;">LKR ${subtotalVal.toFixed(2)}</td></tr>
+            <tr style="color:#047857;"><td style="padding:3px 0;text-align:right;"><strong>Discount Saved:</strong></td><td style="padding:3px 0 3px 16px;text-align:right;">LKR ${discountVal.toFixed(2)}</td></tr>
+            <tr><td style="padding:3px 0;text-align:right;"><strong>Delivery:</strong></td><td style="padding:3px 0 3px 16px;text-align:right;">LKR ${deliveryVal.toFixed(2)}</td></tr>
+            <tr style="font-size:14px;font-weight:700;color:${PDF_BROWN_DARK};border-top:1px solid #d1d5db;">
+              <td style="padding:8px 0 0 0;text-align:right;">Grand Total:</td>
+              <td style="padding:8px 0 0 16px;text-align:right;">LKR ${grandTotalVal.toFixed(2)}</td>
+            </tr>
           </table>
         </div>
       `;
-
-      document.body.appendChild(tempDiv);
-      
-      const images = tempDiv.querySelectorAll('img');
-      const loadPromises = Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
-      });
-      await Promise.all(loadPromises);
-
-      const pdfBlob = await generatePdfBlob(tempDiv, 'a4', 'p');
-      document.body.removeChild(tempDiv);
-      return pdfBlob;
+      return wrap;
     }
 
-    async function shareWhatsAppPDF() {
-      const invNo = document.getElementById('invNo').innerText;
-      const phone = document.getElementById('invPhone1').innerText;
-      if (!invNo || invNo === '---') return alert('Please generate an invoice first!');
+    function buildLabelDoc(data) {
+      const grandTotalVal = parseFloat(data.grandTotal || data.total || 0);
+      const deliveryCostVal = parseFloat(data.deliveryCost || 0);
+      const itemsDiscountedTotal = grandTotalVal - deliveryCostVal;
 
-      const element = document.getElementById('invoiceCard');
-      const blob = await generatePdfBlob(element, 'a4', 'p');
-      const file = new File([blob], `Invoice-${invNo}.pdf`, { type: 'application/pdf' });
+      const invNo = data.invNo || '---';
+      const name = data.name || '';
+      const phone1 = data.phone1 || '';
+      const phone2 = data.phone2 || 'N/A';
+      const address = data.address || '';
 
+      const wrap = document.createElement('div');
+      wrap.style.cssText = `position:fixed;top:0;left:-3000px;width:700px;background:#ffffff;font-family:${PDF_FONT};color:#1f2937;box-sizing:border-box;padding:28px;border:3px solid ${PDF_BROWN};border-radius:8px;`;
+      wrap.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${PDF_BROWN};padding-bottom:12px;">
+          <div>
+            <div style="font-family:${PDF_SERIF};font-weight:700;font-size:20px;color:${PDF_BROWN_DARK};">THE SAREE EMBASSY</div>
+            <div style="font-size:12px;color:#4b5563;margin-top:2px;">NO. 420/5A/01, Kadawatha Road, Ganemulla | WhatsApp: 0702394119</div>
+          </div>
+          <div style="background:${PDF_BROWN};color:#fff;font-size:12px;font-weight:700;padding:5px 12px;border-radius:5px;letter-spacing:1px;">COD</div>
+        </div>
+
+        <div style="display:flex;gap:20px;margin-top:16px;">
+          <div style="flex:0 0 58%;">
+            <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;">DELIVER TO:</div>
+            <div style="font-size:17px;font-weight:700;color:#111827;margin-top:4px;">${escapeHtml(name)}</div>
+            <div style="font-size:13px;color:#374151;margin-top:6px;white-space:pre-line;">${escapeHtml(address)}</div>
+            <div style="margin-top:10px;font-size:12px;">
+              <div><strong>Primary Phone:</strong> ${escapeHtml(phone1)}</div>
+              <div style="margin-top:3px;"><strong>Secondary Phone:</strong> ${escapeHtml(phone2)}</div>
+              <div style="margin-top:6px;"><strong>Order Ref:</strong> ${escapeHtml(String(invNo))}</div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+            <div style="border:2px dashed #b45309;border-radius:6px;padding:16px;text-align:center;background:${PDF_AMBER_BG};">
+              <div style="font-size:12px;color:${PDF_BROWN_DARK};font-weight:700;">PLACE COD STICKER HERE</div>
+              <div style="font-size:10px;color:#b45309;margin-top:4px;">(1.5" × 3" Box)</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:2px dashed #d1d5db;margin-top:16px;padding-top:12px;">
+          <div style="font-size:11px;color:#6b7280;max-width:220px;">Please verify details before handover to courier.</div>
+          <div style="background:${PDF_AMBER_BG};border:1px solid #fcd34d;border-radius:6px;padding:10px 14px;min-width:220px;">
+            <div style="font-size:11px;font-weight:700;color:${PDF_BROWN_DARK};text-transform:uppercase;border-bottom:1px solid #fcd34d;padding-bottom:4px;margin-bottom:4px;">Collect Cash Breakdown</div>
+            <table style="width:100%;font-size:12px;border-collapse:collapse;">
+              <tr><td style="color:#4b5563;">Total:</td><td style="text-align:right;font-weight:600;">LKR ${itemsDiscountedTotal.toFixed(2)}</td></tr>
+              <tr><td style="color:#4b5563;">Delivery:</td><td style="text-align:right;font-weight:600;">LKR ${deliveryCostVal.toFixed(2)}</td></tr>
+              <tr style="border-top:1px solid #fcd34d;font-weight:800;font-size:14px;color:${PDF_BROWN_DARK};">
+                <td style="padding-top:4px;">Grand Total:</td>
+                <td style="padding-top:4px;text-align:right;">LKR ${grandTotalVal.toFixed(2)}</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      `;
+      return wrap;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str == null ? '' : String(str);
+      return div.innerHTML;
+    }
+
+    // Renders a detached doc node off-screen, waits for its images, captures
+    // it with html2canvas, and returns a PDF blob sized to exactly match the
+    // node's rendered pixel dimensions (so content is never cropped/rescaled).
+    async function renderDocToPdfBlob(docEl) {
+      document.body.appendChild(docEl);
+
+      const images = docEl.querySelectorAll('img');
+      await Promise.all(Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+      }));
+
+      const { jsPDF } = window.jspdf;
+      const canvas = await html2canvas(docEl, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+
+      document.body.removeChild(docEl);
+
+      const imgData = canvas.toDataURL('image/png');
+      // Convert the captured element's own CSS pixel size to millimeters
+      // (96 CSS px per inch) so the PDF page is exactly the content size —
+      // no fixed A4/A5 page that could crop or leave awkward whitespace.
+      const widthMM = (docEl.offsetWidth || canvas.width / 2) * 25.4 / 96;
+      const heightMM = (docEl.offsetHeight || canvas.height / 2) * 25.4 / 96;
+      const orientation = widthMM >= heightMM ? 'l' : 'p';
+
+      const pdf = new jsPDF(orientation, 'mm', [widthMM, heightMM]);
+      pdf.addImage(imgData, 'PNG', 0, 0, widthMM, heightMM);
+      return pdf.output('blob');
+    }
+
+    function triggerBlobDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
+    async function shareOrDownloadPdf(blob, filename, phone, waText) {
+      const file = new File([blob], filename, { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-          files: [file],
-          title: `Invoice ${invNo}`,
-          text: `Here is your invoice ${invNo} from The Saree Embassy.`
-        }).catch(err => console.log('Sharing failed:', err));
-      } else {
-        downloadElementPDF('invoiceCard', invNo);
-        const cleanPhone = phone.replace(/[^0-9]/g, '');
-        window.open(`https://wa.me/${cleanPhone}?text=Dear%20customer,%20your%20invoice%20${invNo}%20has%20been%20downloaded%20to%20your%20device.%20Thank%20you!`, '_blank');
+        try {
+          await navigator.share({ files: [file], title: filename, text: waText });
+          return;
+        } catch (err) {
+          console.log('Sharing cancelled or failed:', err);
+        }
       }
+      triggerBlobDownload(blob, filename);
+      if (phone) {
+        const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(waText)}`, '_blank');
+      }
+    }
+
+    // ---- Orders & Invoice tab: buttons on the just-generated order ----
+
+    async function downloadInvoicePDF() {
+      if (!currentOrderData) return alert('Please generate an invoice first!');
+      const blob = await renderDocToPdfBlob(buildInvoiceDoc(currentOrderData));
+      triggerBlobDownload(blob, `Invoice-${currentOrderData.invNo}.pdf`);
+    }
+
+    async function shareInvoiceWhatsApp() {
+      if (!currentOrderData) return alert('Please generate an invoice first!');
+      const blob = await renderDocToPdfBlob(buildInvoiceDoc(currentOrderData));
+      await shareOrDownloadPdf(
+        blob,
+        `Invoice-${currentOrderData.invNo}.pdf`,
+        currentOrderData.phone1,
+        `Dear customer, your invoice ${currentOrderData.invNo} from The Saree Embassy has been downloaded to your device. Thank you!`
+      );
+    }
+
+    async function downloadLabelPDF() {
+      if (!currentOrderData) return alert('Please generate an order first!');
+      const blob = await renderDocToPdfBlob(buildLabelDoc(currentOrderData));
+      triggerBlobDownload(blob, `LABEL-${currentOrderData.invNo}.pdf`);
     }
 
     async function shareLabelWhatsApp() {
-      const invNo = document.getElementById('lblInvNo').innerText;
-      const phone = document.getElementById('lblPhone1').innerText;
-      if (!invNo || invNo === '---') return alert('Please generate an order first!');
-
-      const element = document.getElementById('deliveryLabelCard');
-      const blob = await generatePdfBlob(element, 'a5', 'l');
-      const file = new File([blob], `LABEL-${invNo}.pdf`, { type: 'application/pdf' });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-          files: [file],
-          title: `Delivery Label ${invNo}`,
-          text: `Delivery label for order ${invNo}.`
-        }).catch(err => console.log('Sharing failed:', err));
-      } else {
-        downloadElementPDF('deliveryLabelCard', `LABEL-${invNo}`, 'a5', 'l');
-        const cleanPhone = phone.replace(/[^0-9]/g, '');
-        window.open(`https://wa.me/${cleanPhone}?text=Delivery%20label%20for%20order%20${invNo}`, '_blank');
-      }
+      if (!currentOrderData) return alert('Please generate an order first!');
+      const blob = await renderDocToPdfBlob(buildLabelDoc(currentOrderData));
+      await shareOrDownloadPdf(
+        blob,
+        `LABEL-${currentOrderData.invNo}.pdf`,
+        currentOrderData.phone1,
+        `Delivery label for order ${currentOrderData.invNo}.`
+      );
     }
+
+    // ---- Customer Directory tab: share/download for any cached order ----
+
+    async function directShareWAInvoice(invNo) {
+      const order = findCachedOrder(invNo);
+      if (!order) return alert('Order details not found.');
+      const blob = await renderDocToPdfBlob(buildInvoiceDoc(order));
+      const phone1 = order.phone1 || order.phone || order['Phone 1'] || '';
+      await shareOrDownloadPdf(
+        blob,
+        `Invoice-${invNo}.pdf`,
+        phone1,
+        `Dear customer, your invoice ${invNo} from The Saree Embassy has been downloaded. Thank you!`
+      );
+    }
+
+    async function directShareWALabel(invNo) {
+      const order = findCachedOrder(invNo);
+      if (!order) return alert('Order details not found.');
+      const blob = await renderDocToPdfBlob(buildLabelDoc(order));
+      const phone1 = order.phone1 || order.phone || order['Phone 1'] || '';
+      await shareOrDownloadPdf(
+        blob,
+        `LABEL-${invNo}.pdf`,
+        phone1,
+        `Delivery label for order ${invNo}.`
+      );
+    }
+
+    // =====================================================================
 
     function renderCustomers() {
       const tbody = document.getElementById('customerTableBody');
@@ -805,109 +939,10 @@
 
       const items = parseItems(order);
       items.forEach(it => addItemRow(it));
-    }
 
-    async function directShareWAInvoice(invNo) {
-      const order = findCachedOrder(invNo);
-      if (!order) return alert('Order details not found.');
-
-      const pdfBlob = await renderInvoiceDivAndGetBlob(order);
-      const file = new File([pdfBlob], `Invoice-${invNo}.pdf`, { type: 'application/pdf' });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-          files: [file],
-          title: `Invoice ${invNo}`,
-          text: `Invoice ${invNo} from The Saree Embassy`
-        }).catch(err => console.log('Sharing failed:', err));
-      } else {
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Invoice-${invNo}.pdf`;
-        a.click();
-        const phoneVal = order.phone1 || order.phone || order['Phone 1'] || '';
-        const cleanPhone = phoneVal.replace(/[^0-9]/g, '');
-        window.open(`https://wa.me/${cleanPhone}?text=Dear%20customer,%20your%20invoice%20${invNo}%20has%20been%20downloaded.%20Thank%20you!`, '_blank');
-      }
-    }
-
-    async function directShareWALabel(invNo) {
-      const order = findCachedOrder(invNo);
-      if (!order) return alert('Order details not found.');
-
-      const tempDiv = document.createElement('div');
-      tempDiv.className = 'delivery-label-canvas border-2 border-amber-900 p-6 rounded bg-white text-gray-800 space-y-4 shadow-md shrink-0';
-      tempDiv.style.position = 'fixed';
-      tempDiv.style.top = '0';
-      tempDiv.style.left = '-2000px';
-
-      const grandTotalVal = parseFloat(order.grandTotal || order.total || 0);
-      const deliveryCostVal = parseFloat(order.deliveryCost || 0);
-      const itemsDiscountedTotal = grandTotalVal - deliveryCostVal;
-
-      const name = order.name || order.customerName || order['Customer Name'] || '';
-      const phone1 = order.phone1 || order.phone || order['Phone 1'] || '';
-      const phone2 = order.phone2 || order['Phone 2'] || 'N/A';
-      const address = order.address || order['Delivery Address'] || '';
-
-      tempDiv.innerHTML = `
-        <div class="border-b-2 border-amber-900 pb-3 flex justify-between items-center">
-          <div>
-            <h3 class="text-xl font-bold font-serif text-amber-950">THE SAREE EMBASSY</h3>
-            <p class="text-xs text-gray-600">NO. 420/5A/01, Kadawatha Road, Ganemulla | WhatsApp: 0702394119</p>
-          </div>
-          <span class="bg-amber-900 text-white text-xs px-2.5 py-1 rounded font-bold uppercase">COD</span>
-        </div>
-        <div class="flex flex-row gap-4">
-          <div class="w-7/12 space-y-2">
-            <p class="text-[11px] text-gray-500 font-bold uppercase">DELIVER TO:</p>
-            <h2 class="text-lg font-bold text-gray-900">${name}</h2>
-            <p class="text-xs text-gray-700 whitespace-pre-line">${address}</p>
-            <div class="pt-2 flex flex-col gap-1 text-xs">
-              <p><strong>Primary Phone:</strong> ${phone1}</p>
-              <p><strong>Secondary Phone:</strong> ${phone2}</p>
-              <p class="mt-1"><strong>Order Ref:</strong> ${invNo}</p>
-            </div>
-          </div>
-          <div class="w-5/12 flex items-center justify-center">
-            <div class="cod-sticker-area">
-              <p class="text-xs text-amber-900 font-bold">PLACE COD STICKER HERE<br><span class="text-[10px] text-amber-700 font-normal">(1.5" × 3" Box)</span></p>
-            </div>
-          </div>
-        </div>
-        <div class="border-t-2 border-dashed border-gray-300 pt-3 flex justify-between items-center text-xs">
-          <p class="text-gray-500 text-[11px]">Please verify details before handover to courier.</p>
-          <div class="text-right bg-[#fffbeb] p-3 rounded border border-amber-300 min-w-[210px]">
-            <p class="text-amber-950 font-bold text-[11px] border-b border-amber-200 pb-1 mb-1 uppercase tracking-wide">Collect Cash Breakdown</p>
-            <table class="w-full text-xs text-right">
-              <tr><td class="text-gray-600 font-medium">Total:</td><td class="pl-2 font-semibold">LKR ${itemsDiscountedTotal.toFixed(2)}</td></tr>
-              <tr><td class="text-gray-600 font-medium">Delivery:</td><td class="pl-2 font-semibold">LKR ${deliveryCostVal.toFixed(2)}</td></tr>
-              <tr class="border-t border-amber-300 text-amber-950 font-extrabold text-sm">
-                <td class="pt-1">Grand Total:</td>
-                <td class="pt-1 pl-2 text-amber-900">LKR ${grandTotalVal.toFixed(2)}</td>
-              </tr>
-            </table>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(tempDiv);
-      const pdfBlob = await generatePdfBlob(tempDiv, 'a5', 'l');
-      document.body.removeChild(tempDiv);
-
-      const file = new File([pdfBlob], `LABEL-${invNo}.pdf`, { type: 'application/pdf' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: `Delivery Label ${invNo}` }).catch(err => console.log('Sharing failed:', err));
-      } else {
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `LABEL-${invNo}.pdf`;
-        a.click();
-        const cleanPhone = phone1.replace(/[^0-9]/g, '');
-        window.open(`https://wa.me/${cleanPhone}?text=Delivery%20label%20for%20order%20${invNo}`, '_blank');
-      }
+      // Let the invoice/label preview + PDF buttons work immediately for an
+      // order loaded from the directory, even before the form is resubmitted.
+      currentOrderData = { ...order, invNo };
     }
 
     function deleteOrder(invNo) {
