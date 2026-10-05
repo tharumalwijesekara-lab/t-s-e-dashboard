@@ -737,6 +737,20 @@
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     }
 
+    function buildInvoiceWaMessage(data) {
+      const name = data.name || data.customerName || data['Customer Name'] || 'customer';
+      const invNo = data.invNo || data.invoiceNo || data['Invoice No'] || '---';
+      const grandTotal = parseFloat(data.grandTotal || data.total || 0).toFixed(2);
+      return `Hello ${name},\n\nThank you for shopping with The Saree Embassy!\n\nYour invoice (${invNo}) for LKR ${grandTotal} is attached below.`;
+    }
+
+    function buildLabelWaMessage(data) {
+      const name = data.name || data.customerName || data['Customer Name'] || 'customer';
+      const invNo = data.invNo || data.invoiceNo || data['Invoice No'] || '---';
+      const codAmount = parseFloat(data.codAmount || data['COD Amount'] || data.grandTotal || 0).toFixed(2);
+      return `Hello ${name},\n\nHere is the delivery label for your order (${invNo}).\n\nCash to collect on delivery: LKR ${codAmount}.`;
+    }
+
     async function shareOrDownloadPdf(blob, filename, phone, waText) {
       const file = new File([blob], filename, { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -769,7 +783,7 @@
         blob,
         `Invoice-${currentOrderData.invNo}.pdf`,
         currentOrderData.phone1,
-        `Dear customer, your invoice ${currentOrderData.invNo} from The Saree Embassy has been downloaded to your device. Thank you!`
+        buildInvoiceWaMessage(currentOrderData)
       );
     }
 
@@ -786,7 +800,7 @@
         blob,
         `LABEL-${currentOrderData.invNo}.pdf`,
         currentOrderData.phone1,
-        `Delivery label for order ${currentOrderData.invNo}.`
+        buildLabelWaMessage(currentOrderData)
       );
     }
 
@@ -801,7 +815,7 @@
         blob,
         `Invoice-${invNo}.pdf`,
         phone1,
-        `Dear customer, your invoice ${invNo} from The Saree Embassy has been downloaded. Thank you!`
+        buildInvoiceWaMessage({ ...order, invNo })
       );
     }
 
@@ -814,7 +828,7 @@
         blob,
         `LABEL-${invNo}.pdf`,
         phone1,
-        `Delivery label for order ${invNo}.`
+        buildLabelWaMessage({ ...order, invNo })
       );
     }
 
